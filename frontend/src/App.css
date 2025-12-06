@@ -1,0 +1,219 @@
+/* Hide scrollbars */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
+}
+
+/* Activities animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-8px) rotate(1deg);
+  }
+  66% {
+    transform: translateY(-15px) rotate(-1deg);
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes orbPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+@keyframes diagonalFlow {
+  0% {
+    transform: translate(-100px, -100px) scale(0.5);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.8;
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(100vw, 100vh) scale(1.2);
+    opacity: 0;
+  }
+}
+
+@keyframes diagonalOrbFlow {
+  0% {
+    transform: translate(0, 0) scale(0.3);
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.8;
+    transform: translate(-5vw, 5vh) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-15vw, 15vh) scale(1);
+  }
+  85% {
+    opacity: 0.8;
+    transform: translate(-85vw, 85vh) scale(1.1);
+  }
+  95% {
+    opacity: 0.3;
+    transform: translate(-95vw, 95vh) scale(0.8);
+  }
+  100% {
+    transform: translate(-110vw, 110vh) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes diagonalSparkleFlow {
+  0% {
+    transform: translate(0, 0) scale(0.5);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-10vw, 10vh) scale(1);
+  }
+  90% {
+    opacity: 0.8;
+    transform: translate(-90vw, 90vh) scale(1);
+  }
+  100% {
+    transform: translate(-105vw, 105vh) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes diagonalOrbFlowReverse {
+  0% {
+    transform: translate(0, 0) scale(0.3);
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.8;
+    transform: translate(5vw, 5vh) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(15vw, 15vh) scale(1);
+  }
+  85% {
+    opacity: 0.8;
+    transform: translate(85vw, 85vh) scale(1.1);
+  }
+  95% {
+    opacity: 0.3;
+    transform: translate(95vw, 95vh) scale(0.8);
+  }
+  100% {
+    transform: translate(110vw, 110vh) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes diagonalSparkleFlowReverse {
+  0% {
+    transform: translate(0, 0) scale(0.5);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translate(10vw, 10vh) scale(1);
+  }
+  90% {
+    opacity: 0.8;
+    transform: translate(90vw, 90vh) scale(1);
+  }
+  100% {
+    transform: translate(105vw, 105vh) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Scroll reveal animations */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(50px);
+  transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+

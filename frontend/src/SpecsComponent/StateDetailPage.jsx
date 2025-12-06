@@ -1,0 +1,180 @@
+import React, { useState, useEffect } from 'react';
+import { BookOpen, MapPin, ChevronDown, Loader2, Thermometer, Users, Building2 } from 'lucide-react';
+
+const DynamicStateCard = ({ data }) => {
+  // --- State ---
+  // If no data is passed, use a safe default to prevent crashing
+  const safeData = data || {
+    name: "Unknown State",
+    regions: [],
+    stats: { weather: "N/A", population: "N/A", capital: "N/A" }
+  };
+
+  const [selectedEntity, setSelectedEntity] = useState(safeData.name);
+  const [wikiText, setWikiText] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  // Controls the expand/scroll logic
+  const [isExpanded, setIsExpanded] = useState(false); 
+
+  // --- API Fetch ---
+  useEffect(() => {
+    const fetchHistory = async () => {
+      setLoading(true);
+      try {
+        const endpoint = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&exintro&explaintext&titles=${selectedEntity}`;
+        const response = await fetch(endpoint);
+        const result = await response.json();
+        const pages = result.query.pages;
+        const pageId = Object.keys(pages)[0];
+
+        if (pages[pageId].extract) {
+          setWikiText(pages[pageId].extract);
+        } else {
+          setWikiText("Historical records are currently unavailable for this specific region.");
+        }
+      } catch (error) {
+        setWikiText("Unable to connect to the knowledge archives.");
+      }
+      setLoading(false);
+    };
+
+    fetchHistory();
+  }, [selectedEntity]);
+
+  // Reset expansion when changing dropdown options
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [selectedEntity]);
+
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center bg-gray-50 p-2 font-sans text-slate-800">
+      
+      {/* Decorative Background Blobs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] right-[-5%] h-96 w-96 rounded-full bg-blue-100/50 blur-3xl" />
+        <div className="absolute bottom-[-10%] left-[-10%] h-80 w-80 rounded-full bg-indigo-100/50 blur-3xl" />
+      </div>
+
+      {/* --- Main Card --- */}
+      <div className="relative z-10 w-full max-w-[380px] sm:max-w-md rounded-3xl bg-white shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] border border-slate-100 transition-all duration-300">
+        
+        {/* Header Section */}
+        <div className="p-6 pb-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full">
+              Explorer
+            </span>
+             
+          </div>
+          
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-6">
+            {safeData.name}
+          </h1>
+
+          {/* IMPROVED OPTION SELECTION */}
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <MapPin className="text-indigo-500" size={18} />
+            </div>
+            <select
+              value={selectedEntity}
+              onChange={(e) => setSelectedEntity(e.target.value)}
+              className="w-full appearance-none rounded-xl bg-slate-50 border border-slate-200 py-3.5 pl-10 pr-10 text-sm font-semibold text-slate-700 shadow-sm transition-all cursor-pointer hover:border-indigo-300 hover:bg-white hover:shadow-md focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none"
+            >
+              <option value={safeData.name}>Overview: {safeData.name}</option>
+              {safeData.regions.map((region, index) => (
+                <option key={index} value={region}>
+                  History: {region}
+                </option>
+              ))}
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400 group-hover:text-indigo-500 transition-colors">
+              <ChevronDown size={18} strokeWidth={2.5} />
+            </div>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="p-6 pt-2">
+          <div className="relative rounded-2xl bg-white">
+            
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3 text-indigo-500">
+                <Loader2 className="animate-spin" size={28} />
+                <span className="text-xs font-medium opacity-60">Accessing Archives...</span>
+              </div>
+            ) : (
+              <div className="relative transition-all duration-500 ease-in-out">
+                {/* LOGIC: 
+                   If isExpanded = true: Height 64 (256px), Overflow Auto.
+                   If isExpanded = false: Height 24 (96px), Overflow Hidden.
+                */}
+                <div 
+                  className={`
+                    text-sm leading-relaxed text-slate-600 text-justify transition-all duration-500
+                    ${isExpanded 
+                      ? 'h-64 overflow-y-auto pr-2 custom-scrollbar' // Expanded
+                      : 'h-24 overflow-hidden' // Collapsed
+                    }
+                  `}
+                >
+                  {wikiText}
+                </div>
+
+                {/* Fade Out Gradient (Only show when NOT expanded) */}
+                {!isExpanded && (
+                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+                )}
+              </div>
+            )}
+
+            {/* Read More Trigger */}
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="group flex items-center gap-2 rounded-full bg-slate-50 px-5 py-2 text-sm font-bold text-slate-700 transition-all hover:bg-indigo-50 hover:text-indigo-600 active:scale-95"
+              >
+                <span>{isExpanded ? 'Collapse' : 'Read Full History'}</span>
+                <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : 'group-hover:translate-y-0.5'}`}>
+                  <ChevronDown size={16} />
+                </div>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      {/* Custom Scrollbar Styles for Light Theme */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #a5b4fc;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+// --- Example Usage (Parent Component) ---
+const WikiStateCard = ({exampleData}) => {
+  useEffect(()=>{
+    console.log("from state detail",exampleData);
+    
+  },[])
+  return <DynamicStateCard data={exampleData} />;
+};
+
+export default WikiStateCard;

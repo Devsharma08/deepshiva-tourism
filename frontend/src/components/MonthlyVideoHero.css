@@ -1,0 +1,214 @@
+/* Additional styles for the Monthly Video Hero component */
+
+.video-hero-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Main video hero container with cursor change */
+.video-hero-main {
+  cursor: ew-resize;
+}
+
+/* Brighten regular video elements */
+video {
+  filter: contrast(1.1) brightness(1.2);
+}
+
+/* YouTube iframe zoom and loading circle hiding */
+.youtube-iframe {
+  transform: scale(1.15);
+  transform-origin: center center;
+  width: 115%;
+  height: 115%;
+  left: -7.5%;
+  top: -7.5%;
+  filter: contrast(1.1) brightness(1.2);
+  transition: transform 0.3s ease;
+}
+
+/* Container to hide overflow from zoomed iframe */
+.youtube-container,
+.imagekit-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Video transition container for fade effects */
+.video-transition-container {
+  position: absolute;
+  inset: 0;
+  opacity: 1;
+  transition: opacity 1s ease-in-out;
+}
+
+.video-transition-container.transitioning {
+  opacity: 0;
+}
+
+/* Smooth fade transition for video changes */
+.video-fade-enter {
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+}
+
+.video-fade-enter-active {
+  opacity: 1;
+}
+
+.video-fade-exit {
+  opacity: 1;
+  transition: opacity 1s ease-in-out;
+}
+
+.video-fade-exit-active {
+  opacity: 0;
+}
+
+
+
+.video-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
+.video-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 2;
+}
+
+.video-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: white;
+  text-align: center;
+  padding: 0 1rem;
+}
+
+.progress-bar {
+  transition: width 0.1s linear;
+}
+
+.month-button {
+  transition: all 0.3s ease;
+}
+
+.month-button:hover {
+  transform: translateY(-2px);
+}
+
+.play-pause-button {
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.play-pause-button:hover {
+  transform: scale(1.1);
+}
+
+/* Location hover card styles */
+.location-hover-card {
+  animation: fadeInUp 0.3s ease-out;
+  transform-origin: bottom left;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Hover card backdrop blur enhancement */
+.location-hover-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(128, 128, 128, 0.15) 0%, rgba(96, 96, 96, 0.1) 100%);
+  border-radius: inherit;
+  z-index: -1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+
+  .video-content h1,
+  .video-content h2 {
+    font-size: 3rem;
+  }
+
+  .bottom-left-controls {
+    left: 1rem;
+    bottom: 1rem;
+    max-width: calc(100vw - 2rem);
+  }
+
+  .month-navigation {
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+  }
+
+  .month-button {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+    min-width: auto;
+    white-space: nowrap;
+  }
+
+  .progress-container {
+    width: 100%;
+    max-width: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+
+  .video-content h1,
+  .video-content h2 {
+    font-size: 2.5rem;
+  }
+
+  .bottom-left-controls {
+    left: 0.5rem;
+    bottom: 0.5rem;
+  }
+
+  .progress-container {
+    max-width: 200px;
+  }
+
+  .location-hover-card {
+    width: 240px;
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .location-hover-card {
+    width: 220px;
+    padding: 0.75rem;
+  }
+}
