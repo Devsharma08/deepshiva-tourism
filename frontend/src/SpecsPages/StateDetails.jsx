@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, MapPin, Thermometer, Calendar, Shield, Train, Plane, Utensils,
-  Cloud, Sun, CloudRain, CloudLightning, Snowflake, Wind, ChevronRight, ChevronDown
+  Cloud, Sun, CloudRain, CloudLightning, Snowflake, Wind, ChevronRight
 } from "lucide-react";
 import { getStateData, getStateDesc } from "../Data/TourismData";
 import DestinationRail from "../SpecsComponent/DestinationRail";
@@ -42,7 +42,6 @@ const StateDetails = () => {
   
   const [forecast, setForecast] = useState([]);
   const [weatherLoading, setWeatherLoading] = useState(true);
-  const [showFullForecast, setShowFullForecast] = useState(false); 
 
   const API_KEY = "bd5e378503939ddaee76f12ad7a97608"; 
 
@@ -54,7 +53,6 @@ const StateDetails = () => {
         setWeatherLoading(true);
 
         try {
-            // FIX: Handle Spaces and Edge Cases
             let queryName = stateName;
             if (stateName === "J & K") queryName = "Jammu and Kashmir";
             if (stateName === "Odisha") queryName = "Bhubaneswar"; 
@@ -135,38 +133,23 @@ const StateDetails = () => {
             <StatBadge icon={<MapPin size={16}/>} label={`${data.destinations.length} Hotspots`} />
           </div>
 
-          {/* --- ANIMATED WEATHER RAIL --- */}
-          {/* We control the maxWidth of this wrapper to animate expansion */}
-          <div 
-            style={{
-                ...styles.weatherRailWrapper,
-                // ANIMATION LOGIC:
-                maxWidth: showFullForecast ? "100%" : "360px", // 360px shows approx 3 cards
-            }}
-          >
-              <div style={styles.weatherHeader}>
-                  <div style={styles.weatherLabel}>LIVE FORECAST</div>
-                  
-                  {!weatherLoading && forecast.length > 3 && (
-                      <button 
-                        onClick={() => setShowFullForecast(!showFullForecast)}
-                        style={styles.expandBtn}
-                      >
-                        {showFullForecast ? "Show Less" : "Extend"} 
-                        {showFullForecast ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
-                      </button>
-                  )}
+          {/* --- NEW WEATHER STRIP --- */}
+          <div style={styles.weatherStrip}>
+              <div style={styles.weatherStripHeader}>
+                 <div style={styles.weatherLabel}>7 DAY FORECAST</div>
+                 <div style={styles.weatherLoc}><MapPin size={12}/> {stateName}</div>
               </div>
 
               {weatherLoading ? (
                 <div style={styles.weatherLoading}><div className="spinner"></div> Connecting...</div>
               ) : (
-                <div style={styles.weatherTrack}>
-                  {/* Note: We map ALL forecast items, but the wrapper cuts them off visually until expanded */}
+                <div style={styles.weatherStripTrack}>
                   {forecast.map((day, i) => <WeatherCard key={i} day={day} index={i} />)}
                 </div>
               )}
           </div>
+          {/* ------------------------- */}
+          
         </div>
       </div>
       
@@ -209,6 +192,12 @@ const StateDetails = () => {
         }
         .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Custom Scrollbar for the Strip */
+        .weather-track::-webkit-scrollbar { height: 6px; }
+        .weather-track::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
+        .weather-track::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        .weather-track::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
       `}</style>
     </div>
   );
@@ -220,28 +209,27 @@ const StatBadge = ({ icon, label }) => (
   <div style={styles.statBadge}>{icon} <span>{label}</span></div>
 );
 
-// COMPACT WEATHER CARD
+// STRIP WEATHER CARD
 const WeatherCard = ({ day, index }) => {
   const Icon = day.condition?.icon || Cloud; 
-  // Adjusted visual bar to fit smaller height
+  // Percentage for the bar height
   const barHeight = Math.min((day.max / 45) * 100, 100); 
+  
   return (
-    <div className="weather-card" style={{...styles.weatherCard, animationDelay: `${index * 100}ms`}}>
-      <div style={{...styles.weatherCardBg, background: day.condition?.bg || '#333'}} />
-      
+    <div style={{...styles.weatherCard, padding:2, animationDelay: `${index * 80}ms`}}>
       {/* Date */}
-      <div style={{ zIndex: 2, textAlign: 'center', marginTop: '5px' }}>
+      <div style={styles.wcHeader}>
         <div style={styles.wcDay}>{day.name}</div>
         <div style={styles.wcDate}>{day.date}</div>
       </div>
 
-      {/* Icon */}
-      <div style={{ zIndex: 2 }}>
-        <Icon size={20} color={day.condition?.color || '#fff'} />
+      {/* Icon & Visual */}
+      <div style={styles.wcIconWrapper}>
+         <Icon size={24} color={day.condition?.color || '#fff'} />
       </div>
 
-      {/* Bar & Temps */}
-      <div style={{ zIndex: 2, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', marginBottom: '5px' }}>
+      {/* Temps & Bar */}
+      <div style={styles.wcFooter}>
          <div style={styles.wcTemp}>{day.max}°</div>
          <div style={styles.wcBarTrack}>
              <div style={{...styles.wcBarFill, height: `${barHeight}%`, background: day.condition?.color || '#fff'}} />
@@ -257,64 +245,75 @@ const styles = {
   pageWrapper: { fontFamily: "'Inter', sans-serif", color: "#1e293b", background: "#f1f5f9", minHeight: "100vh" },
   
   // HERO
-  heroSection: { height: "auto", minHeight: "85vh", position: "relative", display: "flex", alignItems: "flex-end", padding: "0 5% 60px", clipPath: "polygon(0 0, 100% 0, 100% 95%, 0 100%)", marginBottom: "-50px" },
+  heroSection: { height: "auto", minHeight: "90vh", position: "relative", display: "flex", alignItems: "flex-end", padding: "0 5% 80px", clipPath: "polygon(0 0, 100% 0, 100% 95%, 0 100%)", marginBottom: "-50px" },
   heroBg: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", zIndex: 0 },
   heroOverlay: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", background: "linear-gradient(to top, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.4))", zIndex: 1 },
   heroContent: { position: "relative", zIndex: 10, width: "100%", maxWidth: "1200px", margin: "0 auto", paddingTop: "120px" },
   backBtn: { position: "absolute", top: 30, left: 30, zIndex: 20, display: "flex", alignItems: "center", gap: "10px", background: "rgba(255,255,255,0.1)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.2)", color: "white", padding: "10px 20px", borderRadius: "30px", cursor: "pointer", fontWeight: "600" },
   tagline: { color: "#fbbf24", letterSpacing: "4px", fontSize: "0.9rem", fontWeight: "bold", background: "rgba(0,0,0,0.5)", padding: "5px 10px", borderRadius: "4px" },
   title: { fontFamily: "'Cinzel', serif", fontSize: "clamp(3rem, 6vw, 5rem)", color: "white", margin: "10px 0 20px", textShadow: "0 10px 30px rgba(0,0,0,0.5)", lineHeight: 1 },
-  statsRow: { display: "flex", gap: "15px", flexWrap: "wrap", marginBottom: "30px" },
+  statsRow: { display: "flex", gap: "15px", flexWrap: "wrap", marginBottom: "40px" },
   statBadge: { display: "flex", alignItems: "center", gap: "8px", background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", padding: "8px 16px", borderRadius: "50px", color: "white", fontSize: "0.9rem", border: "1px solid rgba(255,255,255,0.1)" },
 
-  // --- WEATHER STYLES UPDATED ---
-  weatherRailWrapper: { 
-    marginTop: "20px", 
-    background: "rgba(255, 255, 255, 0.03)", 
-    backdropFilter: "blur(10px)", 
-    borderRadius: "20px", 
-    border: "1px solid rgba(255, 255, 255, 0.1)", 
-    padding: "20px", 
-    // ANIMATION PROPERTIES
-    transition: "max-width 0.6s cubic-bezier(0.25, 1, 0.5, 1)", 
-    overflow: "hidden" 
+  // --- NEW WEATHER STRIP STYLES ---
+  weatherStrip: { 
+    width: "100%", 
+    background: "rgba(255, 255, 255, 0.08)", 
+    backdropFilter: "blur(16px)", 
+    borderRadius: "24px", 
+    border: "1px solid rgba(255, 255, 255, 0.15)", 
+    padding: "20px 25px", 
+    display: "flex",
+    flexDirection: "column",
+    gap: "15px",
+    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)"
   },
   
-  weatherHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", minWidth: "300px" },
-  weatherLabel: { fontSize: "0.75rem", color: "#94a3b8", letterSpacing: "2px", fontWeight: "bold" },
-  expandBtn: { display: "flex", alignItems: "center", gap: "5px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", fontSize: "0.7rem", padding: "4px 10px", borderRadius: "20px", cursor: "pointer", transition: "all 0.3s" },
+  weatherStripHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "10px" },
+  weatherLabel: { fontSize: "0.8rem", color: "#fbbf24", letterSpacing: "2px", fontWeight: "800" },
+  weatherLoc: { fontSize: "0.8rem", color: "#94a3b8", display: "flex", alignItems: "center", gap: "5px", textTransform: "uppercase", letterSpacing: "1px" },
   
-  weatherTrack: { display: "flex", gap: "12px", overflowX: "auto", paddingBottom: "10px", scrollSnapType: "x mandatory" },
+  weatherStripTrack: { 
+    display: "flex", 
+    gap: "15px", 
+    overflowX: "auto", 
+    paddingBottom: "2px", 
+    scrollSnapType: "x mandatory",
+    className: "weather-track" // referenced in style tag
+  },
   
-  // COMPACT CARD STYLES
+  weatherLoading: { color: "white", display: "flex", gap: "10px", fontSize: "0.9rem", padding: "20px" },
+
+  // CLEANER CARD STYLES
   weatherCard: { 
     flexShrink: 0, 
-    width: "90px", // Narrower
-    height: "140px", // Shorter (Reduced from 180px)
-    background: "rgba(255,255,255,0.05)", 
-    border: "1px solid rgba(255,255,255,0.1)", 
+    width: "85px", // Slightly wider than before
+    height: "150px", 
+    background: "rgba(0,0,0,0.2)", // Darker translucent for card
     borderRadius: "16px", 
-    position: "relative", 
-    overflow: "hidden", 
     display: "flex", 
     flexDirection: "column", 
     alignItems: "center", 
     justifyContent: "space-between", 
-    padding: "8px 4px", 
-    cursor: "pointer", 
-    scrollSnapAlign: "start" 
+    padding: "10px 5px", 
+    scrollSnapAlign: "start",
+    border: "1px solid rgba(255,255,255,0.05)",
+    transition: "transform 0.2s",
+    cursor: "default"
   },
-  weatherCardBg: { position: "absolute", inset: 0, opacity: 0.2, zIndex: 1 },
   
-  // Adjusted text sizes for compact card
-  wcDay: { fontSize: "0.65rem", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px" },
+  wcHeader: { textAlign: "center" },
+  wcDay: { fontSize: "0.6rem", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "2px" },
   wcDate: { fontSize: "0.9rem", fontWeight: "bold", color: "white" },
+  
+  wcIconWrapper: { display: "flex", alignItems: "center", justifyContent: "center", height: "40px" },
+  
+  wcFooter: { display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", width: "100%" },
   wcTemp: { fontSize: "0.85rem", fontWeight: "bold", color: "white" },
   wcMinTemp: { fontSize: "0.7rem", color: "#64748b" },
   
-  // Adjusted bar for compact card
-  wcBarTrack: { width: "3px", height: "30px", background: "rgba(255,255,255,0.1)", borderRadius: "2px", position: "relative", margin: "2px 0" },
-  wcBarFill: { width: "100%", position: "absolute", bottom: 0, borderRadius: "2px", boxShadow: "0 0 10px currentColor" },
+  wcBarTrack: { width: "4px", height: "35px", background: "rgba(255,255,255,0.1)", borderRadius: "10px", position: "relative", margin: "2px 0" },
+  wcBarFill: { width: "100%", position: "absolute", bottom: 0, borderRadius: "10px", boxShadow: "0 0 8px currentColor" },
 
   // LAYOUT
   contentContainer: { maxWidth: "1400px", margin: "0 auto", padding: "0 20px 100px", position: "relative", zIndex: 5 },
@@ -323,25 +322,6 @@ const styles = {
   mapPedestalShadow: { width: "60%", height: "40px", background: "radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 70%)", borderRadius: "50%", transform: "rotateX(60deg) translateY(60px)", filter: "blur(10px)", zIndex: -1 },
   bentoBox: { background: "white", borderRadius: "24px", padding: "30px", boxShadow: "0 10px 40px -10px rgba(0,0,0,0.05)", border: "1px solid #f1f5f9", position: "relative", overflow: "hidden" },
   bioBox: { flex: "1", minWidth: "300px", display: "flex", flexDirection: "column", justifyContent: "center", minHeight: "400px" },
-  boxHeader: { fontSize: "1.2rem", fontWeight: "700", color: "#334155", margin: 0, fontFamily: "'Cinzel', serif" },
-  boxTitleRow: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" },
-  bioText: { fontSize: "1.1rem", lineHeight: "1.8", color: "#64748b", margin: "20px 0" },
-  climateTag: { marginTop: "auto", alignSelf: "flex-start", background: "#dbeafe", color: "#1e40af", padding: "5px 15px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "bold" },
-  logisticsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "25px", marginTop: "25px" },
-  foodList: { display: "flex", flexDirection: "column", gap: "15px" },
-  foodCard: { display: "flex", alignItems: "center", gap: "15px", padding: "10px", borderRadius: "12px", background: "#f8fafc", border: "1px solid #e2e8f0" },
-  foodImg: { width: "60px", height: "60px", borderRadius: "10px", objectFit: "cover" },
-  foodInfo: { display: "flex", flexDirection: "column" },
-  foodName: { fontWeight: "600", color: "#334155" },
-  foodType: { fontSize: "0.8rem", fontWeight: "bold" },
-  infoRow: { display: "flex", alignItems: "center", gap: "15px", marginBottom: "15px" },
-  iconCircle: { width: "40px", height: "40px", borderRadius: "50%", background: "#eff6ff", color: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center" },
-  infoLabel: { fontSize: "0.8rem", color: "#94a3b8", textTransform: "uppercase" },
-  infoValue: { fontSize: "1rem", fontWeight: "600", color: "#334155" },
-  sosGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" },
-  sosItem: { background: "#fef2f2", padding: "15px", borderRadius: "12px", textAlign: "center", border: "1px solid #fee2e2" },
-  sosLabel: { display: "block", fontSize: "0.75rem", color: "#ef4444", fontWeight: "bold", textTransform: "uppercase" },
-  sosNumber: { fontSize: "1.2rem", fontWeight: "800", color: "#b91c1c" },
   sectionSpacer: { marginTop: "40px" },
   loading: { height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8" }
 };

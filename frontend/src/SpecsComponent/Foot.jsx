@@ -29,7 +29,7 @@ const RegionalDashboard = () => {
     <div className="w-full bg-slate-50 min-h-screen">
       
       {/* Wrapper to match sibling width (1200px) */}
-      <div className="max-w-[1200px] mx-auto px-6 py-12 font-sans">
+      <div className="max-w-[1200px] px-2 py-12 font-sans">
 
         {/* --- HEADER (Matched to Previous Sibling Style) --- */}
         <div className="flex items-center gap-5 mb-10">

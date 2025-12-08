@@ -1713,7 +1713,7 @@ export const STATE_STATS_DATA = {
     transport: { airport: "IGI Airport (DEL)", rail: "NDLS/Nizamuddin", road: "Multiple Expressways" },
     safety: DEFAULT_SAFETY
   },
-  "Jammu and Kashmir": {
+  "J & k": {
     achievements: [
       { label: "Tourism", value: "Paradise", icon: Users, color: "text-emerald-600", bg: "bg-emerald-50" },
       { label: "Saffron", value: "GI Tag", icon: Award, color: "text-blue-600", bg: "bg-blue-50" },

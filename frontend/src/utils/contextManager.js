@@ -4,7 +4,7 @@ import { openDB } from 'idb';
 const DB_NAME = 'TravelAI_DB';
 const CHAT_STORE = 'chat_history';
 const MAP_STORE = 'geo_maps';
-const ACTIVITY_STORE = 'user_activities'; // <--- NEW STORE FOR CLICKS
+const ACTIVITY_STORE = 'user_activities'; 
 
 // Initialize the Database
 const initDB = async () => {
