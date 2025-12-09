@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon app.js",
+    "dev": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -12,9 +13,14 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "amadeus": "^11.0.0",
+    "axios": "^1.13.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^5.1.0",
-    "nodemon": "^3.1.10"
+    "express": "^5.2.1",
+    "node-cache": "^5.1.2",
+    "node-fetch": "^3.3.2",
+    "nodemon": "^3.1.10",
+    "unsplash-js": "^7.0.20"
   }
 }

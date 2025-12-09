@@ -37,7 +37,11 @@ import India3D from './SpecsPages/India3D';
 import StateDetails from './SpecsPages/StateDetails'; 
 import { getMapFromDB, saveMapToDB } from "./utils/ContextManager";
 import RegionalDashboard from './SpecsComponent/Foot.jsx'
+import BookingPage from './SpecsPages/BookingPage.jsx';
+import TravelApp from './SpecsPages/TravelCard.jsx';
 import './App.css';
+import ListPage from './SpecsPages/ListPage.jsx';
+
 
 const INDIA_MAP_URL = "https://raw.githubusercontent.com/geohacker/india/master/state/india_telengana.geojson";
 
@@ -75,9 +79,12 @@ function App() {
           path="/map" 
           element={<India3D preLoadedData={indiaGeoData} />} 
         />
-        
         <Route path="/map/:stateName" element={<StateDetails />} />
-      </Routes>
+        </Routes>
+
+
+        {/* booking */}
+        {/* <Route path='/booking' element={<ListPage/>}></Route> */}
     </div>
   );
 }
