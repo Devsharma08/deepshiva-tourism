@@ -125,3 +125,73 @@ const InteractiveMap = ({ destCoords }) => {
 };
 
 export default InteractiveMap;
+// import React, { useEffect, useState } from 'react';
+// import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+// import 'leaflet/dist/leaflet.css';
+// import L from 'leaflet';
+// import React,{useEffect,useState} from 'react';
+
+// Icons Fix
+// import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+// import markerIcon from 'leaflet/dist/images/marker-icon.png';
+// import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow,
+});
+
+// Auto-Fit Bounds
+function MapController({ bounds }) {
+    const map = useMap();
+    useEffect(() => {
+        if (bounds) map.fitBounds(bounds, { padding: [50, 50] });
+    }, [bounds, map]);
+    return null;
+}
+
+export const MapComponent = ({ destCoords, userLocation, routeData }) => {
+    const defaultCenter = [20.5937, 78.9629]; // India
+
+    // Calculate Bounds for Zooming
+    const bounds = (userLocation && destCoords) 
+        ? [[userLocation.lat, userLocation.lng], [destCoords.lat, destCoords.lng]]
+        : destCoords ? [[destCoords.lat, destCoords.lng], [destCoords.lat, destCoords.lng]] : null;
+
+    return (
+        <MapContainer center={defaultCenter} zoom={5} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+            {/* STANDARD OSM TILES (Your "Realier" Service) */}
+            <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; OpenStreetMap contributors'
+            />
+
+            {bounds && <MapController bounds={bounds} />}
+
+            {/* User Marker */}
+            {userLocation && (
+                <Marker position={[userLocation.lat, userLocation.lng]}>
+                    <Popup>You are here</Popup>
+                </Marker>
+            )}
+
+            {/* Destination Marker */}
+            {destCoords && (
+                <Marker position={[destCoords.lat, destCoords.lng]}>
+                    <Popup>Destination</Popup>
+                </Marker>
+            )}
+
+            {/* Route Line (Blue) */}
+            {routeData?.geometry?.coordinates && (
+                <Polyline 
+                    positions={routeData.geometry.coordinates.map(c => [c[1], c[0]])} 
+                    color="#2563eb" 
+                    weight={6} 
+                    opacity={0.8} 
+                />
+            )}
+        </MapContainer>
+    );
+};
+

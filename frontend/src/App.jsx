@@ -41,6 +41,7 @@ import BookingPage from './SpecsPages/BookingPage.jsx';
 import TravelApp from './SpecsPages/TravelCard.jsx';
 import './App.css';
 import ListPage from './SpecsPages/ListPage.jsx';
+import App1 from './main1.jsx'
 
 
 const INDIA_MAP_URL = "https://raw.githubusercontent.com/geohacker/india/master/state/india_telengana.geojson";
@@ -73,6 +74,8 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/foot" element={<RegionalDashboard />} />
+        <Route path="/bot" element={<App1 />} />
+        
         
         {/* 3. Pass the pre-loaded data down to India3D */}
         <Route 

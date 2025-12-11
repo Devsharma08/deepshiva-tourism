@@ -6,6 +6,7 @@ import App from './SpecsPages/ListPage.jsx'
 import "leaflet/dist/leaflet.css"; // Leaflet styles
 import './index.css' // Global styles
 
+// import App1 from './main1.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

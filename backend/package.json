@@ -13,6 +13,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.87.1",
     "amadeus": "^11.0.0",
     "axios": "^1.13.2",
     "cors": "^2.8.5",
