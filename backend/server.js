@@ -680,10 +680,19 @@ const express = require('express');
 const cors = require('cors');
 const Amadeus = require('amadeus');
 const axios = require('axios');
+const cron = require('node-cron');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// --- CONFIGURATION ---
+const SUPABASE_URL = process.env.SUPABASE_URL; 
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+
 
 const PORT = 5000;
 const AMADEUS_ID = process.env.AMADEUS_CLIENT_ID;
@@ -843,5 +852,101 @@ app.get('/api/suggestions', async (req, res) => {
         res.json({ suggestions: response.data.map(i => ({ name: i.display_place, subtitle: i.display_address })) });
     } catch (e) { res.json({ suggestions: [] }); }
 });
+
+
+// --- HELPER FUNCTIONS ---
+
+// 1. Haversine Formula (Calculate distance in KM)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth radius in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
+};
+
+// 2. Logic to generate "Mock" Footfall (Since we don't have a $1000 API key)
+// In a real app, you would replace this with an axios call to Google Places/Foursquare
+const getLiveFootfallEstimate = (baseFootfall) => {
+    // Random fluctuation +/- 20% to simulate live data
+    const fluctuation = 0.8 + Math.random() * 0.4; 
+    return Math.floor(baseFootfall * fluctuation);
+};
+
+// --- API ROUTES ---
+
+
+app.get('/api/destinations', async (req, res) => {
+    const { data, error } = await supabase.from('destinations').select('*');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+app.get('/api/state-stats', async (req, res) => {
+    const { data, error } = await supabase.from('destinations').select('state, cached_footfall, carbon_intensity_factor');
+    if (error) return res.status(500).json({ error: error.message });
+
+    const stateMap = {};
+    data.forEach(item => {
+        const stateName = item.state ? item.state.trim() : "Unknown";
+        if (!stateMap[stateName]) stateMap[stateName] = { footfall: 0, maxCarbon: 0 };
+        
+        stateMap[stateName].footfall += item.cached_footfall;
+        stateMap[stateName].maxCarbon = Math.max(stateMap[stateName].maxCarbon, item.carbon_intensity_factor);
+    });
+
+    const finalStats = {};
+    for (const [state, stats] of Object.entries(stateMap)) {
+        finalStats[state] = { 
+            footfall: stats.footfall, 
+            carbon_factor: parseFloat(stats.maxCarbon.toFixed(1)) 
+        };
+    }
+    res.json(finalStats);
+});
+
+app.post('/api/calculate-impact', async (req, res) => {
+    const { userLat, userLng, destinationId } = req.body;
+    if (!userLat || !userLng || !destinationId) return res.status(400).json({ error: "Missing data" });
+
+    const { data: dest, error } = await supabase.from('destinations').select('*').eq('id', destinationId).single();
+    if (error || !dest) return res.status(404).json({ error: "Not found" });
+
+    const distanceKm = calculateDistance(userLat, userLng, dest.latitude, dest.longitude);
+    const finalCarbon = Math.round((distanceKm * 0.12) * dest.carbon_intensity_factor);
+
+    res.json({
+        destination: dest.name,
+        distance_km: distanceKm,
+        carbon_kg: finalCarbon,
+        live_footfall: dest.cached_footfall
+    });
+});
+
+// --- CRON JOB (Runs Every Hour) ---
+cron.schedule('0 * * * *', async () => {
+    console.log("⏳ updating crowd simulation...");
+    const { data: locations } = await supabase.from('destinations').select('*');
+    
+    if (locations) {
+        for (const loc of locations) {
+            // Use 'description' as the Type (Monument, Beach, etc)
+            const type = loc.description || 'City';
+            const newFootfall = getLiveFootfallEstimate(loc.cached_footfall, type); // Note: ideally use a separate base_footfall column
+            
+            // Update DB
+            await supabase
+                .from('destinations')
+                .update({ cached_footfall: newFootfall, last_updated: new Date() })
+                .eq('id', loc.id);
+        }
+    }
+    console.log("✅ Crowd data updated.");
+});
+
 
 app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
