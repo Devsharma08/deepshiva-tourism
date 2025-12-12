@@ -135,63 +135,111 @@ export default InteractiveMap;
 // import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 // import markerIcon from 'leaflet/dist/images/marker-icon.png';
 // import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+// import React, { useEffect } from 'react';
+// import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+// import 'leaflet/dist/leaflet.css';
+// import L from 'leaflet';
 
+// // --- ICON FIX (Essential for React Leaflet) ---
+// import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+// import markerIcon from 'leaflet/dist/images/marker-icon.png';
+// import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+// Fix duplicate code block
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-    iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow,
+    iconRetinaUrl: markerIcon2x,
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
 });
 
-// Auto-Fit Bounds
-function MapController({ bounds }) {
+const hotelIcon = new L.Icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/1055/1055644.png',
+    iconSize: [35, 35],
+    iconAnchor: [17, 35],
+    popupAnchor: [0, -35]
+});
+
+// --- CONTROLLER: Handles Zoom & Pan ---
+function MapController({ bounds, center }) {
     const map = useMap();
     useEffect(() => {
-        if (bounds) map.fitBounds(bounds, { padding: [50, 50] });
-    }, [bounds, map]);
+        if (bounds) {
+            // Add padding so markers aren't on the very edge
+            map.fitBounds(bounds, { padding: [50, 50] });
+        } else if (center) {
+            map.flyTo(center, 14); // Close zoom for single location
+        }
+    }, [bounds, center, map]);
     return null;
 }
 
 export const MapComponent = ({ destCoords, userLocation, routeData }) => {
-    const defaultCenter = [20.5937, 78.9629]; // India
+    // 1. SAFE DATA EXTRACTION
+    // We strictly check if lat/lng exist to avoid "undefined" crashes
+    const hasUser = userLocation?.lat != null && userLocation?.lng != null;
+    const hasDest = destCoords?.lat != null && destCoords?.lng != null;
 
-    // Calculate Bounds for Zooming
-    const bounds = (userLocation && destCoords) 
-        ? [[userLocation.lat, userLocation.lng], [destCoords.lat, destCoords.lng]]
-        : destCoords ? [[destCoords.lat, destCoords.lng], [destCoords.lat, destCoords.lng]] : null;
+    // 2. DETERMINE CENTER
+    // Priority: Destination -> User -> Default (India)
+    const defaultCenter = [20.5937, 78.9629];
+    let mapCenter = defaultCenter;
+
+    if (hasDest) mapCenter = [destCoords.lat, destCoords.lng];
+    else if (hasUser) mapCenter = [userLocation.lat, userLocation.lng];
+
+    // 3. CALCULATE BOUNDS (For Zooming)
+    let bounds = null;
+    if (hasUser && hasDest) {
+        bounds = [
+            [userLocation.lat, userLocation.lng],
+            [destCoords.lat, destCoords.lng]
+        ];
+    }
 
     return (
-        <MapContainer center={defaultCenter} zoom={5} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-            {/* STANDARD OSM TILES (Your "Realier" Service) */}
-            <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; OpenStreetMap contributors'
-            />
-
-            {bounds && <MapController bounds={bounds} />}
-
-            {/* User Marker */}
-            {userLocation && (
-                <Marker position={[userLocation.lat, userLocation.lng]}>
-                    <Popup>You are here</Popup>
-                </Marker>
-            )}
-
-            {/* Destination Marker */}
-            {destCoords && (
-                <Marker position={[destCoords.lat, destCoords.lng]}>
-                    <Popup>Destination</Popup>
-                </Marker>
-            )}
-
-            {/* Route Line (Blue) */}
-            {routeData?.geometry?.coordinates && (
-                <Polyline 
-                    positions={routeData.geometry.coordinates.map(c => [c[1], c[0]])} 
-                    color="#2563eb" 
-                    weight={6} 
-                    opacity={0.8} 
+        <div className="w-full h-full relative z-0">
+            <MapContainer 
+                center={mapCenter} 
+                zoom={5} 
+                style={{ height: '100%', width: '100%' }} 
+                zoomControl={false}
+            >
+                {/* TILES */}
+                <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; OpenStreetMap contributors'
                 />
-            )}
-        </MapContainer>
+
+                {/* CONTROLLER (Moves the map) */}
+                <MapController bounds={bounds} center={hasDest ? mapCenter : null} />
+
+                {/* MARKER: USER */}
+                {hasUser && (
+                    <Marker position={[userLocation.lat, userLocation.lng]}>
+                        <Popup>You are here</Popup>
+                    </Marker>
+                )}
+
+                {/* MARKER: DESTINATION */}
+                {hasDest && (
+                    <Marker position={[destCoords.lat, destCoords.lng]} icon={hotelIcon}>
+                        <Popup>Destination</Popup>
+                    </Marker>
+                )}
+
+                {/* ROUTE LINE */}
+                {routeData?.geometry?.coordinates && (
+                    <Polyline 
+                        // OSRM returns [Lng, Lat], Leaflet needs [Lat, Lng] -> We swap them here
+                        positions={routeData.geometry.coordinates.map(c => [c[1], c[0]])} 
+                        color="#2563eb" 
+                        weight={5} 
+                        opacity={0.8} 
+                    />
+                )}
+            </MapContainer>
+        </div>
     );
 };
 

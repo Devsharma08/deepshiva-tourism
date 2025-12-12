@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FiAlignLeft } from "react-icons/fi";
+import { Link } from "react-router-dom";
 
 function Navigation() {
   const [scrolled, setScrolled] = useState(false);
@@ -60,9 +61,9 @@ function Navigation() {
             <a href="#activities" className="hover:text-amber-700">
               Activities
             </a>
-            <a href="#community" className="hover:text-amber-700">
-              Community
-            </a>
+            <Link to={'/booking'} className="hover:text-amber-700">
+              Accommodation and Flight
+            </Link>
             <a href="#plan-trip" className="hover:text-amber-700">
               Plan Your Trip
             </a>

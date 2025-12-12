@@ -528,6 +528,153 @@
 // });
 
 // app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+// require('dotenv').config();
+// const express = require('express');
+// const cors = require('cors');
+// const Amadeus = require('amadeus');
+// const axios = require('axios');
+
+// const app = express();
+// app.use(cors());
+// app.use(express.json());
+
+// const PORT = 5000;
+// const AMADEUS_ID = process.env.AMADEUS_CLIENT_ID;
+// const AMADEUS_SECRET = process.env.AMADEUS_CLIENT_SECRET;
+// const LOCATIONIQ_KEY = process.env.LOCATIONIQ_KEY;
+
+// const amadeus = new Amadeus({
+//   clientId: AMADEUS_ID,
+//   clientSecret: AMADEUS_SECRET,
+//   logLevel: 'silent'
+// });
+
+// // --- HELPER: Mock Data Generators ---
+// const getAmenities = () => ['Free Wifi', 'Swimming Pool', 'Spa', 'Parking', 'Restaurant', 'Gym', 'Bar', 'Room Service'].sort(() => 0.5 - Math.random()).slice(0, 5);
+// const getFakePrice = (str) => {
+//     let hash = 0;
+//     for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+//     return (Math.abs(hash) % 8000) + 2000; 
+// };
+
+// // --- API 1: FLIGHT SEARCH (Fixed: INR Conversion) ---
+// app.get('/api/flights/search', async (req, res) => {
+//     try {
+//         const { origin, destination, date } = req.query;
+//         if (!origin || !destination) return res.json({ flights: [] });
+
+//         const response = await amadeus.shopping.flightOffersSearch.get({
+//             originLocationCode: origin,
+//             destinationLocationCode: destination,
+//             departureDate: date,
+//             adults: '1',
+//             max: 10
+//         });
+
+//         if (!response.data) return res.json({ flights: [] });
+
+//         const dictionaries = response.result.dictionaries || {};
+//         const flights = response.data.map(flight => {
+//             const segment = flight.itineraries[0].segments[0];
+            
+//             // CURRENCY CONVERSION LOGIC
+//             let price = parseFloat(flight.price.total);
+//             const currency = flight.price.currency;
+//             if (currency === 'EUR') price *= 90; // Approx EUR to INR
+//             else if (currency === 'USD') price *= 84; // Approx USD to INR
+            
+//             return {
+//                 id: flight.id,
+//                 totalPrice: Math.round(price), // Rounded INR
+//                 currency: 'INR',
+//                 airline: dictionaries.carriers?.[segment.carrierCode] || segment.carrierCode,
+//                 flightNumber: segment.carrierCode + segment.number,
+//                 aircraft: dictionaries.aircraft?.[segment.aircraft.code] || segment.aircraft.code,
+//                 departure: segment.departure,
+//                 arrival: segment.arrival,
+//                 duration: flight.itineraries[0].duration.replace('PT', '').toLowerCase(),
+//                 segments: flight.itineraries[0].segments.length,
+//                 seatsAvailable: flight.numberOfBookableSeats || Math.floor(Math.random() * 50) + 1
+//             };
+//         });
+//         res.json({ flights });
+//     } catch (error) {
+//         console.error("Flight Error:", error.response?.result?.errors || error.message);
+//         res.json({ flights: [] }); // Return empty array on error instead of crashing
+//     }
+// });
+
+// // --- API 2: HOTEL SEARCH ---
+// app.get('/api/hotels/search', async (req, res) => {
+//     try {
+//         const { city } = req.query;
+//         if (!city) return res.json({ hotels: [] });
+
+//         const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`, { headers: { 'User-Agent': 'TravelApp/1.0' } });
+//         if (!geoRes.data.length) return res.json({ hotels: [] });
+        
+//         const { osm_id, lat, lon } = geoRes.data[0];
+//         const areaId = osm_id + 3600000000;
+
+//         const overpassQuery = `[out:json][timeout:25];area(${areaId})->.searchArea;node["tourism"="hotel"](area.searchArea);out body 20;`;
+//         const hotelRes = await axios.get(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`);
+        
+//         const hotels = (hotelRes.data.elements || []).filter(h => h.tags.name).map(h => ({
+//             id: h.id,
+//             name: h.tags.name,
+//             location: { lat: h.lat, lng: h.lon, address: h.tags['addr:street'] || city },
+//             price: getFakePrice(h.tags.name),
+//             rating: (Math.random() * 1.5 + 3.5).toFixed(1),
+//             amenities: getAmenities(),
+//             image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'
+//         }));
+//         res.json({ hotels });
+//     } catch (error) {
+//         res.json({ hotels: [] });
+//     }
+// });
+
+// // --- API 3: ROUTING ---
+// app.post('/api/route', async (req, res) => {
+//     try {
+//         const { userLocation, destLocation } = req.body;
+//         const coords = `${userLocation.lng},${userLocation.lat};${destLocation.lng},${destLocation.lat}`;
+//         const url = `http://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
+//         const response = await axios.get(url);
+//         if (response.data.code !== 'Ok') throw new Error('No route');
+        
+//         const route = response.data.routes[0];
+//         res.json({
+//             duration: Math.round(route.duration / 60),
+//             distance: (route.distance / 1000).toFixed(1),
+//             geometry: route.geometry 
+//         });
+//     } catch (error) {
+//         res.status(500).json({ error: 'Route failed' });
+//     }
+// });
+
+// // --- API 4: AUTOCOMPLETE ---
+// app.get('/api/suggestions', async (req, res) => {
+//     try {
+//         const { query } = req.query;
+//         const response = await axios.get('https://api.locationiq.com/v1/autocomplete.php', {
+//             params: { key: LOCATIONIQ_KEY, q: query, limit: 5, countrycodes: 'in', format: 'json' }
+//         });
+//         res.json({ suggestions: response.data.map(i => ({ name: i.display_place, subtitle: i.display_address })) });
+//     } catch (e) { res.json({ suggestions: [] }); }
+// });
+
+// app.get('/api/airports', async (req, res) => {
+//     try {
+//         const { keyword } = req.query;
+//         const response = await amadeus.referenceData.locations.get({ keyword, subType: 'AIRPORT', 'page[limit]': 5 });
+//         res.json({ airports: response.data.map(i => ({ name: i.name, iata: i.iataCode, city: i.address.cityName })) });
+//     } catch (e) { res.json({ airports: [] }); }
+// });
+
+// app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -543,21 +690,24 @@ const AMADEUS_ID = process.env.AMADEUS_CLIENT_ID;
 const AMADEUS_SECRET = process.env.AMADEUS_CLIENT_SECRET;
 const LOCATIONIQ_KEY = process.env.LOCATIONIQ_KEY;
 
-const amadeus = new Amadeus({
-  clientId: AMADEUS_ID,
-  clientSecret: AMADEUS_SECRET,
-  logLevel: 'silent'
-});
+// Init Amadeus (Mock or Real)
+let amadeus;
+if (!AMADEUS_ID || !AMADEUS_SECRET) {
+    console.warn("⚠️ Amadeus Keys Missing. Using Mock Data.");
+    amadeus = { shopping: { flightOffersSearch: { get: () => Promise.resolve({ data: [] }) } } };
+} else {
+    amadeus = new Amadeus({ clientId: AMADEUS_ID, clientSecret: AMADEUS_SECRET, logLevel: 'silent' });
+}
 
-// --- HELPER: Mock Data Generators ---
-const getAmenities = () => ['Free Wifi', 'Swimming Pool', 'Spa', 'Parking', 'Restaurant', 'Gym', 'Bar', 'Room Service'].sort(() => 0.5 - Math.random()).slice(0, 5);
+// --- HELPERS ---
+const getAmenities = () => ['Free Wifi', 'Swimming Pool', 'Spa', 'Parking', 'Restaurant', 'Gym', 'Bar'].sort(() => 0.5 - Math.random()).slice(0, 5);
 const getFakePrice = (str) => {
     let hash = 0;
     for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
     return (Math.abs(hash) % 8000) + 2000; 
 };
 
-// --- API 1: FLIGHT SEARCH (Fixed: INR Conversion) ---
+// --- API 1: FLIGHT SEARCH (Strict Deduplication) ---
 app.get('/api/flights/search', async (req, res) => {
     try {
         const { origin, destination, date } = req.query;
@@ -568,79 +718,100 @@ app.get('/api/flights/search', async (req, res) => {
             destinationLocationCode: destination,
             departureDate: date,
             adults: '1',
-            max: 10
+            max: 20
         });
 
         if (!response.data) return res.json({ flights: [] });
 
         const dictionaries = response.result.dictionaries || {};
-        const flights = response.data.map(flight => {
-            const segment = flight.itineraries[0].segments[0];
+        const uniqueFlights = new Map();
+
+        response.data.forEach(offer => {
+            const segment = offer.itineraries[0].segments[0];
+            const flightNum = segment.carrierCode + segment.number;
             
-            // CURRENCY CONVERSION LOGIC
-            let price = parseFloat(flight.price.total);
-            const currency = flight.price.currency;
-            if (currency === 'EUR') price *= 90; // Approx EUR to INR
-            else if (currency === 'USD') price *= 84; // Approx USD to INR
-            
-            return {
-                id: flight.id,
-                totalPrice: Math.round(price), // Rounded INR
-                currency: 'INR',
-                airline: dictionaries.carriers?.[segment.carrierCode] || segment.carrierCode,
-                flightNumber: segment.carrierCode + segment.number,
-                aircraft: dictionaries.aircraft?.[segment.aircraft.code] || segment.aircraft.code,
-                departure: segment.departure,
-                arrival: segment.arrival,
-                duration: flight.itineraries[0].duration.replace('PT', '').toLowerCase(),
-                segments: flight.itineraries[0].segments.length,
-                seatsAvailable: flight.numberOfBookableSeats || Math.floor(Math.random() * 50) + 1
-            };
+            // Convert Price
+            let price = parseFloat(offer.price.total);
+            if (offer.price.currency === 'EUR') price *= 90;
+            if (offer.price.currency === 'USD') price *= 84;
+            price = Math.round(price);
+
+            // DEDUPLICATION LOGIC:
+            // Key is just the Flight Number (AI101). 
+            // If we have seen AI101 before, only overwrite if this new offer is CHEAPER.
+            if (!uniqueFlights.has(flightNum) || price < uniqueFlights.get(flightNum).totalPrice) {
+                uniqueFlights.set(flightNum, {
+                    id: offer.id,
+                    totalPrice: price,
+                    currency: 'INR',
+                    airline: dictionaries.carriers?.[segment.carrierCode] || segment.carrierCode,
+                    flightNumber: flightNum,
+                    aircraft: dictionaries.aircraft?.[segment.aircraft.code] || segment.aircraft.code,
+                    departure: segment.departure,
+                    arrival: segment.arrival,
+                    duration: offer.itineraries[0].duration.replace('PT', '').toLowerCase(),
+                    segments: offer.itineraries[0].segments.length,
+                    seatsAvailable: offer.numberOfBookableSeats || 9
+                });
+            }
         });
-        res.json({ flights });
+
+        res.json({ flights: Array.from(uniqueFlights.values()) });
+
     } catch (error) {
-        console.error("Flight Error:", error.response?.result?.errors || error.message);
-        res.json({ flights: [] }); // Return empty array on error instead of crashing
+        console.error("Flight Error");
+        res.json({ flights: [] });
     }
 });
 
-// --- API 2: HOTEL SEARCH ---
+// --- API 2: HOTEL SEARCH (Paginated) ---
 app.get('/api/hotels/search', async (req, res) => {
     try {
-        const { city } = req.query;
+        const { city, page = 1 } = req.query;
         if (!city) return res.json({ hotels: [] });
 
         const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`, { headers: { 'User-Agent': 'TravelApp/1.0' } });
         if (!geoRes.data.length) return res.json({ hotels: [] });
         
-        const { osm_id, lat, lon } = geoRes.data[0];
-        const areaId = osm_id + 3600000000;
-
-        const overpassQuery = `[out:json][timeout:25];area(${areaId})->.searchArea;node["tourism"="hotel"](area.searchArea);out body 20;`;
+        const { lat, lon } = geoRes.data[0];
+        const radius = 25000; // 25km Radius
+        
+        // Optimized Overpass Query
+        const overpassQuery = `[out:json][timeout:25];(node["tourism"="hotel"](around:${radius},${lat},${lon}););out body 50;`;
         const hotelRes = await axios.get(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`);
         
-        const hotels = (hotelRes.data.elements || []).filter(h => h.tags.name).map(h => ({
-            id: h.id,
-            name: h.tags.name,
-            location: { lat: h.lat, lng: h.lon, address: h.tags['addr:street'] || city },
-            price: getFakePrice(h.tags.name),
-            rating: (Math.random() * 1.5 + 3.5).toFixed(1),
-            amenities: getAmenities(),
-            image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'
-        }));
-        res.json({ hotels });
+        const allHotels = (hotelRes.data.elements || [])
+            .filter(h => h.tags && h.tags.name)
+            .map(h => ({
+                id: h.id,
+                name: h.tags.name,
+                location: { lat: h.lat || lat, lng: h.lon || lon, address: h.tags['addr:street'] || city },
+                price: getFakePrice(h.tags.name),
+                rating: (Math.random() * 1.5 + 3.5).toFixed(1),
+                amenities: getAmenities(),
+                image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'
+            }));
+
+        // Manual Pagination
+        const LIMIT = 10;
+        const start = (page - 1) * LIMIT;
+        res.json({ hotels: allHotels.slice(start, start + LIMIT) });
+
     } catch (error) {
         res.json({ hotels: [] });
     }
 });
 
-// --- API 3: ROUTING ---
+// --- API 3: ROUTING (Safe) ---
 app.post('/api/route', async (req, res) => {
     try {
         const { userLocation, destLocation } = req.body;
+        if (!userLocation?.lat || !destLocation?.lat) return res.json(null);
+
         const coords = `${userLocation.lng},${userLocation.lat};${destLocation.lng},${destLocation.lat}`;
         const url = `http://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
-        const response = await axios.get(url);
+        
+        const response = await axios.get(url, { timeout: 3000 });
         if (response.data.code !== 'Ok') throw new Error('No route');
         
         const route = response.data.routes[0];
@@ -650,11 +821,19 @@ app.post('/api/route', async (req, res) => {
             geometry: route.geometry 
         });
     } catch (error) {
-        res.status(500).json({ error: 'Route failed' });
+        res.json(null);
     }
 });
 
-// --- API 4: AUTOCOMPLETE ---
+// --- API 4 & 5 (Autocomplete) ---
+app.get('/api/airports', async (req, res) => {
+    try {
+        const { keyword } = req.query;
+        const response = await amadeus.referenceData.locations.get({ keyword, subType: 'AIRPORT', 'page[limit]': 5 });
+        res.json({ airports: response.data.map(i => ({ name: i.name, iata: i.iataCode, city: i.address.cityName })) });
+    } catch (e) { res.json({ airports: [] }); }
+});
+
 app.get('/api/suggestions', async (req, res) => {
     try {
         const { query } = req.query;
@@ -663,14 +842,6 @@ app.get('/api/suggestions', async (req, res) => {
         });
         res.json({ suggestions: response.data.map(i => ({ name: i.display_place, subtitle: i.display_address })) });
     } catch (e) { res.json({ suggestions: [] }); }
-});
-
-app.get('/api/airports', async (req, res) => {
-    try {
-        const { keyword } = req.query;
-        const response = await amadeus.referenceData.locations.get({ keyword, subType: 'AIRPORT', 'page[limit]': 5 });
-        res.json({ airports: response.data.map(i => ({ name: i.name, iata: i.iataCode, city: i.address.cityName })) });
-    } catch (e) { res.json({ airports: [] }); }
 });
 
 app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
