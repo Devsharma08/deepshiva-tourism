@@ -698,6 +698,7 @@ const PORT = 5000;
 const AMADEUS_ID = process.env.AMADEUS_CLIENT_ID;
 const AMADEUS_SECRET = process.env.AMADEUS_CLIENT_SECRET;
 const LOCATIONIQ_KEY = process.env.LOCATIONIQ_KEY;
+const WEATHER_API_KEY = "bd5e378503939ddaee76f12ad7a97608"; // OpenWeatherMap Free Key
 
 // Init Amadeus (Mock or Real)
 let amadeus;
@@ -852,40 +853,125 @@ app.get('/api/suggestions', async (req, res) => {
         res.json({ suggestions: response.data.map(i => ({ name: i.display_place, subtitle: i.display_address })) });
     } catch (e) { res.json({ suggestions: [] }); }
 });
+// --- 2. SENSOR LOGIC (The "Brain") ---
 
+// SENSOR A: Behavior Curves (Math)
+// Determines crowd multiplier based on Time of Day & Place Type
+const getTimeMultiplier = (hour, type) => {
+    // Standard Tourism (Monuments, Parks, Cities)
+    if (['Monument', 'Park', 'Zoo', 'City'].includes(type)) {
+        if (hour >= 11 && hour <= 16) return 1.0; // Peak
+        if (hour >= 9 && hour < 11) return 0.7;   // Rising
+        if (hour > 16 && hour <= 18) return 0.6;  // Fading
+        if (hour >= 19 || hour < 8) return 0.1;   // Closed/Night
+        return 0.4;
+    }
 
-// --- HELPER FUNCTIONS ---
+    // Spiritual (Temples - Peak Morning & Evening)
+    if (type === 'Spiritual') {
+        if (hour >= 6 && hour <= 10) return 1.0;  // Morning Darshan
+        if (hour >= 18 && hour <= 20) return 1.2; // Evening Aarti
+        if (hour > 12 && hour < 16) return 0.4;   // Afternoon Lull
+        return 0.1;
+    }
 
-// 1. Haversine Formula (Calculate distance in KM)
+    // Beaches (Sunset Peak)
+    if (type === 'Beach') {
+        if (hour >= 16 && hour <= 19) return 1.5; // Sunset
+        if (hour >= 11 && hour < 16) return 0.3;  // Too Hot
+        if (hour >= 7 && hour < 11) return 0.6;   // Morning Walk
+        return 0.1;
+    }
+
+    // Hill Stations (Daytime activity)
+    if (type === 'Hill Station') {
+        if (hour >= 10 && hour <= 17) return 1.0;
+        return 0.2;
+    }
+
+    return 0.5; // Default Fallback
+};
+
+// SENSOR B: Live Weather (API)
+// Pings satellite data to see if rain/heat should reduce crowds
+const getWeatherMultiplier = async (lat, lng) => {
+    try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${WEATHER_API_KEY}`;
+        const res = await axios.get(url);
+        
+        const weatherId = res.data.weather[0].id; // 200-500: Rain, 800: Clear
+        const tempK = res.data.main.temp;
+        const tempC = tempK - 273.15;
+
+        let mult = 1.0;
+
+        // Rain/Snow Logic
+        if (weatherId >= 200 && weatherId < 600) mult = 0.3; // Rain -> 30% crowd
+        else if (weatherId >= 600 && weatherId < 700) mult = 0.5; // Snow -> 50% crowd
+        
+        // Heat Logic (India Context)
+        if (tempC > 42) mult *= 0.4; // Extreme Heat -> 40% crowd
+        
+        // Good Weather Bonus
+        if (weatherId === 800 && tempC > 20 && tempC < 30) mult *= 1.1;
+
+        return mult;
+    } catch (error) {
+        console.error(`⚠️ Weather Sensor Failed for [${lat}, ${lng}]:`, error.message);
+        return 1.0; // Fail-safe: Assume normal weather
+    }
+};
+
+// SENSOR FUSION ENGINE (Combines all data)
+const calculateLiveFootfall = async (baseCapacity, lat, lng, type) => {
+    const now = new Date();
+    
+    // Convert Server Time to India Time (IST) for accuracy
+    const istTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+    const hour = istTime.getHours();
+    const day = istTime.getDay(); // 0 = Sunday
+
+    // 1. Time Factor
+    const timeFactor = getTimeMultiplier(hour, type);
+
+    // 2. Weekend Factor (Fri/Sat/Sun are busy)
+    const weekFactor = (day === 0 || day === 6 || day === 5) ? 1.4 : 0.9;
+
+    // 3. Weather Factor
+    const weatherFactor = await getWeatherMultiplier(lat, lng);
+
+    // 4. Random Noise (+/- 10% to look natural)
+    const noise = 0.9 + Math.random() * 0.2;
+
+    // FINAL CALCULATION
+    let total = Math.floor(baseCapacity * timeFactor * weekFactor * weatherFactor * noise);
+
+    // Safety Floor (Minimum 50 people unless it's 3 AM)
+    if (total < 50) total = (hour > 1 && hour < 5) ? 0 : 50;
+
+    return total;
+};
+
+// HELPER: Distance Calc
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Earth radius in km
+    const R = 6371; 
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*(Math.PI/180))*Math.cos(lat2*(Math.PI/180))*Math.sin(dLon/2)*Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return Math.round(R * c);
 };
 
-// 2. Logic to generate "Mock" Footfall (Since we don't have a $1000 API key)
-// In a real app, you would replace this with an axios call to Google Places/Foursquare
-const getLiveFootfallEstimate = (baseFootfall) => {
-    // Random fluctuation +/- 20% to simulate live data
-    const fluctuation = 0.8 + Math.random() * 0.4; 
-    return Math.floor(baseFootfall * fluctuation);
-};
+// --- 3. API ROUTES ---
 
-// --- API ROUTES ---
-
-
+// Endpoint 1: Get All Destinations (For the Map Dots & Grid)
 app.get('/api/destinations', async (req, res) => {
     const { data, error } = await supabase.from('destinations').select('*');
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
 });
 
+// Endpoint 2: Aggregated State Stats (For Map Colors - India3D)
 app.get('/api/state-stats', async (req, res) => {
     const { data, error } = await supabase.from('destinations').select('state, cached_footfall, carbon_intensity_factor');
     if (error) return res.status(500).json({ error: error.message });
@@ -895,7 +981,9 @@ app.get('/api/state-stats', async (req, res) => {
         const stateName = item.state ? item.state.trim() : "Unknown";
         if (!stateMap[stateName]) stateMap[stateName] = { footfall: 0, maxCarbon: 0 };
         
+        // Sum footfall for the whole state
         stateMap[stateName].footfall += item.cached_footfall;
+        // Use the MAX carbon factor (worst case) to color the state
         stateMap[stateName].maxCarbon = Math.max(stateMap[stateName].maxCarbon, item.carbon_intensity_factor);
     });
 
@@ -909,6 +997,7 @@ app.get('/api/state-stats', async (req, res) => {
     res.json(finalStats);
 });
 
+// Endpoint 3: Trip Impact Calculator
 app.post('/api/calculate-impact', async (req, res) => {
     const { userLat, userLng, destinationId } = req.body;
     if (!userLat || !userLng || !destinationId) return res.status(400).json({ error: "Missing data" });
@@ -927,26 +1016,42 @@ app.post('/api/calculate-impact', async (req, res) => {
     });
 });
 
-// --- CRON JOB (Runs Every Hour) ---
+// --- 4. BACKGROUND TASK (The "Heartbeat") ---
+
+// Runs every hour (e.g., at minute 0)
 cron.schedule('0 * * * *', async () => {
-    console.log("⏳ updating crowd simulation...");
+    console.log(`\n[${new Date().toLocaleTimeString()}] 📡 Syncing Virtual Sensors...`);
+    
+    // 1. Fetch all locations including their BASE Capacity
     const { data: locations } = await supabase.from('destinations').select('*');
     
     if (locations) {
         for (const loc of locations) {
-            // Use 'description' as the Type (Monument, Beach, etc)
-            const type = loc.description || 'City';
-            const newFootfall = getLiveFootfallEstimate(loc.cached_footfall, type); // Note: ideally use a separate base_footfall column
+            // Estimate Type from Description or default to Monument
+            const type = loc.description || 'Monument'; 
             
-            // Update DB
+            // Use the stored BASE value (Max Capacity). Default to 5000 if missing.
+            const baseCapacity = loc.base_footfall || 5000; 
+
+            // 2. Calculate New Value using Sensor Fusion
+            const newFootfall = await calculateLiveFootfall(
+                baseCapacity, 
+                loc.latitude, 
+                loc.longitude, 
+                type
+            );
+
+            // 3. Update DB
             await supabase
                 .from('destinations')
                 .update({ cached_footfall: newFootfall, last_updated: new Date() })
                 .eq('id', loc.id);
+
+            // 4. Rate Limit Protection (Wait 200ms) to respect Free API
+            await new Promise(r => setTimeout(r, 200));
         }
     }
-    console.log("✅ Crowd data updated.");
+    console.log("✅ All Regions Updated.");
 });
-
 
 app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
