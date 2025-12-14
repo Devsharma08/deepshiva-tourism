@@ -1,13 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
+
+// Fallback image that is guaranteed to work
+const FALLBACK_HERO = "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=1920&q=80";
 
 const HeroSection = ({ stateName, data, onBack }) => {
+  const [imgError, setImgError] = useState(false);
+  const heroImage = imgError ? FALLBACK_HERO : (data.heroImage || FALLBACK_HERO);
+
   return (
     <div style={styles.heroContainer}>
-      <div style={{ ...styles.bgImage, backgroundImage: `url(${data.heroImage})` }} />
+      {/* Hidden img to detect broken images */}
+      <img src={data.heroImage} alt="" style={{ display: 'none' }} onError={() => setImgError(true)} />
+      <div style={{ ...styles.bgImage, backgroundImage: `url(${heroImage})` }} />
       <div style={styles.gradientOverlay} />
-      
+
       <button onClick={onBack} style={styles.backButton}>← Back</button>
-      
+
       <div style={styles.content}>
         <span style={styles.tagline}>{data.tagline}</span>
         <h1 style={styles.title}>{stateName}</h1>

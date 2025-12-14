@@ -37,39 +37,39 @@ const DeastinationRail = ({ destinations }) => {
 
   return (
     <div style={styles.wrapper}>
-      
+
       {/* HEADER */}
       <div style={styles.header}>
         <div className="flex flex-col gap-y-[3px]">
-        <h3 style={styles.heading}>Featured Destinations</h3>
-        <div style={styles.subHeading}>Top Recomendations </div>
+          <h3 style={styles.heading}>Featured Destinations</h3>
+          <div style={styles.subHeading}>Top Recomendations </div>
         </div>
         <div style={styles.pagination}>
-          {activeIndex + 1} <span style={{color:'#cbd5e1'}}>/</span> {destinations.length}
+          {activeIndex + 1} <span style={{ color: '#cbd5e1' }}>/</span> {destinations.length}
         </div>
       </div>
 
       {/* MAIN "CARD INSIDE CARD" LAYOUT */}
       <div style={styles.mainCard}>
-        
+
         {/* LEFT SIDE: Content Info */}
         <div style={styles.leftPanel}>
           <div className={isAnimating ? "fade-out" : "fade-in"}>
             <div style={styles.tag}>
               <Compass size={14} /> {activeItem.type || "Must Visit"}
             </div>
-            
+
             <h1 style={styles.title}>{activeItem.name}</h1>
-            
+
             <div style={styles.divider} />
-            
+
             <p style={styles.description}>
               {activeItem.desc || "Experience the breathtaking beauty, rich culture, and historic significance of this amazing destination."}
             </p>
 
             <div style={styles.metaRow}>
               <div style={styles.metaItem}>
-                <MapPin size={16} className="text-blue-500" /> 
+                <MapPin size={16} className="text-blue-500" />
                 <span>Best Time: Oct-Mar</span>
               </div>
             </div>
@@ -82,13 +82,14 @@ const DeastinationRail = ({ destinations }) => {
 
         {/* RIGHT SIDE: Image & Navigation */}
         <div style={styles.rightPanel}>
-          
+
           {/* Main Background Image */}
-          <img 
-            src={activeItem.img} 
-            alt={activeItem.name} 
+          <img
+            src={activeItem.img}
+            alt={activeItem.name}
             style={styles.mainImage}
             className={isAnimating ? "zoom-out" : "zoom-in"}
+            onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80"; }}
           />
           <div style={styles.imageOverlay} />
 
@@ -96,11 +97,16 @@ const DeastinationRail = ({ destinations }) => {
           <div style={styles.floatingCard} onClick={nextSlide}>
             <div style={styles.nextLabel}>Up Next</div>
             <div style={styles.nextContent}>
-               <img src={nextItem.img} alt="Next" style={styles.nextImage} />
-               <div style={styles.nextInfo}>
-                  <div style={styles.nextTitle}>{nextItem.name}</div>
-                  <div style={styles.arrowIcon}><ArrowRight size={14}/></div>
-               </div>
+              <img
+                src={nextItem.img}
+                alt="Next"
+                style={styles.nextImage}
+                onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80"; }}
+              />
+              <div style={styles.nextInfo}>
+                <div style={styles.nextTitle}>{nextItem.name}</div>
+                <div style={styles.arrowIcon}><ArrowRight size={14} /></div>
+              </div>
             </div>
           </div>
 

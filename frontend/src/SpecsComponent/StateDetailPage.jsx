@@ -13,22 +13,157 @@ const DynamicStateCard = ({ data }) => {
   const [selectedEntity, setSelectedEntity] = useState(safeData.name);
   const [wikiText, setWikiText] = useState("");
   const [loading, setLoading] = useState(false);
-  
-  // Controls the expand/scroll logic
-  const [isExpanded, setIsExpanded] = useState(false); 
 
-  // --- API Fetch ---
+  // Controls the expand/scroll logic
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // --- Wikipedia Disambiguation Mapping (All 36 States/UTs + Regions) ---
+  const WIKI_DISAMBIGUATION = {
+    // --- States (for exact matching) ---
+    'Arunachal Pradesh': 'Arunachal Pradesh',
+    'Delhi': 'Delhi',
+    'Lakshadweep': 'Lakshadweep',
+    'Andaman and Nicobar Islands': 'Andaman and Nicobar Islands',
+    'Dadra & Nagar Haveli and Daman & Diu': 'Dadra and Nagar Haveli and Daman and Diu',
+    'Chandigarh': 'Chandigarh',
+    'Puducherry': 'Puducherry',
+    'Ladakh': 'Ladakh',
+    'J & K': 'Jammu and Kashmir',
+
+    // --- Gujarat regions ---
+    'Kutch': 'Kutch district',
+    'Somnath': 'Somnath temple',
+    'Gir': 'Gir Forest National Park',
+    'Dwarka': 'Dwarka',
+
+    // --- Rajasthan regions ---
+    'Jaipur': 'Jaipur',
+    'Udaipur': 'Udaipur',
+    'Jaisalmer': 'Jaisalmer',
+    'Jodhpur': 'Jodhpur',
+    'Pushkar': 'Pushkar',
+
+    // --- Manipur regions ---
+    'Loktak': 'Loktak Lake',
+    'Moirang': 'Moirang',
+    'Imphal': 'Imphal',
+
+    // --- Chhattisgarh regions ---
+    'Bastar': 'Bastar district',
+    'Jagdalpur': 'Jagdalpur',
+    'Chitrakote': 'Chitrakote Falls',
+
+    // --- Meghalaya regions ---
+    'Dawki': 'Dawki, India',
+    'Mawlynnong': 'Mawlynnong',
+    'Cherrapunji': 'Cherrapunji',
+    'Shillong': 'Shillong',
+
+    // --- Sikkim regions ---
+    'Lachung': 'Lachung',
+    'Pelling': 'Pelling',
+    'Gangtok': 'Gangtok',
+    'Nathula': 'Nathu La',
+
+    // --- Ladakh regions ---
+    'Nubra Valley': 'Nubra Valley',
+    'Pangong Tso': 'Pangong Lake',
+    'Pangong': 'Pangong Lake',
+    'Zanskar': 'Zanskar',
+    'Leh': 'Leh',
+    'Khardung La': 'Khardung La',
+
+    // --- Arunachal Pradesh regions ---
+    'Ziro': 'Ziro',
+    'Bomdila': 'Bomdila',
+    'Tawang': 'Tawang',
+    'Itanagar': 'Itanagar',
+
+    // --- Kerala regions ---
+    'Alappuzha': 'Alappuzha',
+    'Alleppey': 'Alappuzha',
+    'Wayanad': 'Wayanad district',
+    'Munnar': 'Munnar',
+    'Thekkady': 'Thekkady',
+
+    // --- Andaman regions ---
+    'Ross Island': 'Ross Island, Andaman',
+    'Neil Island': 'Neil Island',
+    'Havelock': 'Havelock Island',
+    'Port Blair': 'Port Blair',
+
+    // --- Uttarakhand regions ---
+    'Rishikesh': 'Rishikesh',
+    'Haridwar': 'Haridwar',
+    'Nainital': 'Nainital',
+    'Mussoorie': 'Mussoorie',
+
+    // --- Himachal Pradesh regions ---
+    'Manali': 'Manali, Himachal Pradesh',
+    'Shimla': 'Shimla',
+    'Kasol': 'Kasol',
+    'Dharamshala': 'Dharamshala',
+    'Spiti': 'Spiti Valley',
+
+    // --- Tamil Nadu regions ---
+    'Ooty': 'Ooty',
+    'Kodaikanal': 'Kodaikanal',
+    'Mahabalipuram': 'Mahabalipuram',
+    'Rameswaram': 'Rameswaram',
+
+    // --- Kashmir regions ---
+    'Srinagar': 'Srinagar',
+    'Gulmarg': 'Gulmarg',
+    'Pahalgam': 'Pahalgam',
+    'Dal Lake': 'Dal Lake',
+
+    // --- Goa regions ---
+    'Panjim': 'Panaji',
+    'Panaji': 'Panaji',
+    'Calangute': 'Calangute',
+    'Old Goa': 'Old Goa',
+
+    // --- Maharashtra regions ---
+    'Lonavala': 'Lonavala',
+    'Mahabaleshwar': 'Mahabaleshwar',
+    'Ajanta': 'Ajanta Caves',
+    'Ellora': 'Ellora Caves',
+  };
+
+  // --- API Fetch with Fallback ---
   useEffect(() => {
     const fetchHistory = async () => {
       setLoading(true);
       try {
-        const endpoint = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&exintro&explaintext&titles=${selectedEntity}`;
-        const response = await fetch(endpoint);
-        const result = await response.json();
-        const pages = result.query.pages;
-        const pageId = Object.keys(pages)[0];
+        // Get the disambiguated title or use original
+        const wikiTitle = WIKI_DISAMBIGUATION[selectedEntity] || selectedEntity;
 
-        if (pages[pageId].extract) {
+        // First attempt: Direct title search
+        let endpoint = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(wikiTitle)}`;
+        let response = await fetch(endpoint);
+        let result = await response.json();
+        let pages = result.query.pages;
+        let pageId = Object.keys(pages)[0];
+
+        // If direct search fails (pageId is -1 or no extract), try search API
+        if (pageId === '-1' || !pages[pageId].extract) {
+          // Fallback: Use Wikipedia search API with "India" context
+          const searchEndpoint = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&list=search&srsearch=${encodeURIComponent(selectedEntity + ' India')}&srlimit=1`;
+          const searchResponse = await fetch(searchEndpoint);
+          const searchResult = await searchResponse.json();
+
+          if (searchResult.query.search && searchResult.query.search.length > 0) {
+            const bestMatch = searchResult.query.search[0].title;
+            // Now fetch the extract for the best match
+            endpoint = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(bestMatch)}`;
+            response = await fetch(endpoint);
+            result = await response.json();
+            pages = result.query.pages;
+            pageId = Object.keys(pages)[0];
+          }
+        }
+
+        if (pages[pageId] && pages[pageId].extract) {
           setWikiText(pages[pageId].extract);
         } else {
           setWikiText("Historical records are currently unavailable for this specific region.");
@@ -49,7 +184,7 @@ const DynamicStateCard = ({ data }) => {
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-gray-50 p-2 font-sans text-slate-800">
-      
+
       {/* Decorative Background Blobs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] right-[-5%] h-96 w-96 rounded-full bg-blue-100/50 blur-3xl" />
@@ -58,16 +193,16 @@ const DynamicStateCard = ({ data }) => {
 
       {/* --- Main Card --- */}
       <div className="relative z-10 w-full max-w-[380px] sm:max-w-md rounded-3xl bg-white shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] border border-slate-100 transition-all duration-300">
-        
+
         {/* Header Section */}
         <div className="p-6 pb-2">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-bold uppercase tracking-wider text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full">
               Explorer
             </span>
-             
+
           </div>
-          
+
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-6">
             {safeData.name}
           </h1>
@@ -98,7 +233,7 @@ const DynamicStateCard = ({ data }) => {
         {/* Content Area */}
         <div className="p-6 pt-2">
           <div className="relative rounded-2xl bg-white">
-            
+
             {loading ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3 text-indigo-500">
                 <Loader2 className="animate-spin" size={28} />
@@ -110,10 +245,10 @@ const DynamicStateCard = ({ data }) => {
                    If isExpanded = true: Height 64 (256px), Overflow Auto.
                    If isExpanded = false: Height 24 (96px), Overflow Hidden.
                 */}
-                <div 
+                <div
                   className={`
                     text-sm leading-relaxed text-slate-600 text-justify transition-all duration-500
-                    ${isExpanded 
+                    ${isExpanded
                       ? 'h-64 overflow-y-auto pr-2 custom-scrollbar' // Expanded
                       : 'h-24 overflow-hidden' // Collapsed
                     }
@@ -169,11 +304,11 @@ const DynamicStateCard = ({ data }) => {
 };
 
 // --- Example Usage (Parent Component) ---
-const WikiStateCard = ({exampleData}) => {
-  useEffect(()=>{
-    console.log("from state detail",exampleData);
-    
-  },[])
+const WikiStateCard = ({ exampleData }) => {
+  useEffect(() => {
+    console.log("from state detail", exampleData);
+
+  }, [])
   return <DynamicStateCard data={exampleData} />;
 };
 

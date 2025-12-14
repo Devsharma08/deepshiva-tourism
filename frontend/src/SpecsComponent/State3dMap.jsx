@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps";
-import { Tooltip } from "react-tooltip"; 
+import { Tooltip } from "react-tooltip";
 import { getMapFromDB, saveMapToDB, logActivity } from "../utils/ContextManager";
 import { bbox } from "topojson-client"; // Optional if available, otherwise we estimate
 
@@ -36,24 +36,82 @@ const ZoomIcon = ({ type, onClick }) => (
 const MASTER_MAP_URL = "https://raw.githubusercontent.com/geohacker/india/master/district/india_district.geojson";
 const COLORS = ["#FFB7B2", "#B5EAD7", "#E2F0CB", "#FFDAC1", "#C7CEEA", "#FDFD96", "#FF9AA2", "#E0BBE4"];
 
-// --- NAME NORMALIZER ---
+// --- NAME NORMALIZER (All 36 Indian States & UTs) ---
 const normalizeStateName = (name) => {
-    if (!name) return "";
-    const lower = name.toLowerCase().trim();
-    
-    const mapping = {
-        "odisha": "orissa",
-        "uttarakhand": "uttaranchal",
-        "j & k": "jammu and kashmir",
-        "jammu & kashmir": "jammu and kashmir",
-        "andaman and nicobar islands": "andaman & nicobar", // adjusted for common geojson keys
-        "delhi": "nct of delhi",
-        "bengaluru": "karnataka", 
-        "pondicherry": "puducherry",
-        "chhattisgarh": "chhatisgarh" // common spelling diff
-    };
+  if (!name) return "";
+  const lower = name.toLowerCase().trim();
 
-    return mapping[lower] || lower;
+  // Comprehensive mapping for all states/UTs to match GeoJSON property names
+  const mapping = {
+    // States with naming differences
+    "odisha": "orissa",
+    "uttarakhand": "uttaranchal",
+    "j & k": "jammu & kashmir",
+    "j and k": "jammu & kashmir",
+    "jammu and kashmir": "jammu & kashmir",
+    "chhattisgarh": "chhattisgarh", // Some GeoJSON use different spellings
+    "chhatisgarh": "chhattisgarh",
+
+    // Union Territories
+    "delhi": "nct of delhi",
+    "nct delhi": "nct of delhi",
+    "new delhi": "nct of delhi",
+    "andaman and nicobar islands": "andaman & nicobar",
+    "andaman & nicobar islands": "andaman & nicobar",
+    "andaman and nicobar": "andaman & nicobar",
+    "dadra and nagar haveli and daman and diu": "dadra & nagar haveli",
+    "dadra & nagar haveli and daman & diu": "dadra & nagar haveli",
+    "dadra and nagar haveli": "dadra & nagar haveli",
+    "daman and diu": "daman & diu",
+    "lakshadweep": "lakshadweep",
+    "laccadive": "lakshadweep",
+    "pondicherry": "puducherry",
+    "puducherry": "puducherry",
+    "chandigarh": "chandigarh",
+    "ladakh": "ladakh",
+
+    // Northeast States (often have variations)
+    "arunachal pradesh": "arunachal pradesh",
+    "arunachalpradesh": "arunachal pradesh",
+    "arunachal": "arunachal pradesh",
+    "assam": "assam",
+    "manipur": "manipur",
+    "meghalaya": "meghalaya",
+    "mizoram": "mizoram",
+    "nagaland": "nagaland",
+    "sikkim": "sikkim",
+    "tripura": "tripura",
+
+    // Other States
+    "west bengal": "west bengal",
+    "karnataka": "karnataka",
+    "kerala": "kerala",
+    "tamil nadu": "tamil nadu",
+    "tamilnadu": "tamil nadu",
+    "andhra pradesh": "andhra pradesh",
+    "telangana": "telangana",
+    "maharashtra": "maharashtra",
+    "gujarat": "gujarat",
+    "rajasthan": "rajasthan",
+    "madhya pradesh": "madhya pradesh",
+    "uttar pradesh": "uttar pradesh",
+    "bihar": "bihar",
+    "jharkhand": "jharkhand",
+    "punjab": "punjab",
+    "haryana": "haryana",
+    "himachal pradesh": "himachal pradesh",
+    "goa": "goa",
+
+    // City to state (for context-based searching)
+    "bengaluru": "karnataka",
+    "bangalore": "karnataka",
+    "mumbai": "maharashtra",
+    "chennai": "tamil nadu",
+    "kolkata": "west bengal",
+    "hyderabad": "telangana",
+  };
+
+  return mapping[lower] || lower;
 };
 
 const State3DMap = ({ stateName }) => {
@@ -61,10 +119,10 @@ const State3DMap = ({ stateName }) => {
   const [hovered, setHovered] = useState(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("Initializing...");
-  
+
   // Default to India center, but update dynamically
-  const [mapCenter, setMapCenter] = useState([80, 23]); 
-  const [mapZoom, setMapZoom] = useState(1); 
+  const [mapCenter, setMapCenter] = useState([80, 23]);
+  const [mapZoom, setMapZoom] = useState(1);
   const [selectedRegion, setSelectedRegion] = useState(null);
 
   // Note State
@@ -81,19 +139,19 @@ const State3DMap = ({ stateName }) => {
     let totalLat = 0, totalLon = 0, count = 0;
 
     features.forEach(feature => {
-        const geom = feature.geometry;
-        if (!geom) return;
+      const geom = feature.geometry;
+      if (!geom) return;
 
-        // Recursive coordinate flattener
-        const getPoints = (coords) => {
-            if (typeof coords[0] === 'number') return [coords];
-            return coords.reduce((acc, val) => acc.concat(getPoints(val)), []);
-        };
+      // Recursive coordinate flattener
+      const getPoints = (coords) => {
+        if (typeof coords[0] === 'number') return [coords];
+        return coords.reduce((acc, val) => acc.concat(getPoints(val)), []);
+      };
 
-        const points = getPoints(geom.coordinates);
-        points.forEach(pt => {
-            if(pt.length === 2) { totalLon += pt[0]; totalLat += pt[1]; count++; }
-        });
+      const points = getPoints(geom.coordinates);
+      points.forEach(pt => {
+        if (pt.length === 2) { totalLon += pt[0]; totalLat += pt[1]; count++; }
+      });
     });
 
     return count > 0 ? [totalLon / count, totalLat / count] : [78.9629, 20.5937];
@@ -101,76 +159,76 @@ const State3DMap = ({ stateName }) => {
 
   useEffect(() => {
     let isMounted = true;
-    
+
     const loadMap = async () => {
-        setLoading(true);
-        setStatus("Processing Map...");
-        
-        const targetState = normalizeStateName(stateName);
-        
-        // 1. UNIQUE CACHE KEY (Added 'v2' to bust old broken caches)
-        const dbKey = `state_map_v2_${targetState.replace(/\s/g, '')}`;
+      setLoading(true);
+      setStatus("Processing Map...");
 
-        // 2. Clear bad state if needed
-        // localStorage.removeItem(dbKey); // Uncomment if you want to force clear via code
+      const targetState = normalizeStateName(stateName);
 
-        // Try Loading from Cache
-        try {
-            const cached = await getMapFromDB(dbKey);
-            if (cached && cached.features && cached.features.length > 0) {
-                if (isMounted) {
-                    setGeoData(cached);
-                    setMapCenter(calculateCentroid(cached.features));
-                    setMapZoom(4); 
-                    setLoading(false);
-                }
-                return;
-            }
-        } catch(e) { console.warn("Cache miss"); }
+      // 1. UNIQUE CACHE KEY (Added 'v2' to bust old broken caches)
+      const dbKey = `state_map_v2_${targetState.replace(/\s/g, '')}`;
 
-        // Fetch Master Data
-        try {
-            // Check if we have master data cached
-            let masterData = await getMapFromDB('india_master_geo_v2');
-            if (!masterData) {
-                const res = await fetch(MASTER_MAP_URL);
-                if (!res.ok) throw new Error("Failed to download map");
-                masterData = await res.json();
-                await saveMapToDB('india_master_geo_v2', masterData);
-            }
+      // 2. Clear bad state if needed
+      // localStorage.removeItem(dbKey); // Uncomment if you want to force clear via code
 
-            if (!masterData || !masterData.features) throw new Error("Invalid Map Data");
-
-            // 3. ROBUST FILTERING
-            const filteredFeatures = masterData.features.filter(f => {
-                const p = f.properties;
-                // Check ALL common property names
-                const pName = (p.ST_NM || p.NAME_1 || p.statename || p.st_nm || "").toLowerCase();
-                const normalizedPName = normalizeStateName(pName);
-                
-                // Strict check first, then inclusion
-                return normalizedPName === targetState || normalizedPName.includes(targetState);
-            });
-
-            if (filteredFeatures.length > 0) {
-                const finalData = { type: "FeatureCollection", features: filteredFeatures };
-                if (isMounted) {
-                    setGeoData(finalData);
-                    setMapCenter(calculateCentroid(filteredFeatures));
-                    setMapZoom(4); // Reset Zoom on load
-                    saveMapToDB(dbKey, finalData); // Save the GOOD data
-                }
-            } else {
-                console.error("State not found in GeoJSON properties:", targetState);
-                if (isMounted) setStatus(`Boundaries not found for ${stateName}`);
-            }
-
-        } catch (err) {
-            console.error(err);
-            if (isMounted) setStatus("Map Data Error");
-        } finally {
-            if (isMounted) setLoading(false);
+      // Try Loading from Cache
+      try {
+        const cached = await getMapFromDB(dbKey);
+        if (cached && cached.features && cached.features.length > 0) {
+          if (isMounted) {
+            setGeoData(cached);
+            setMapCenter(calculateCentroid(cached.features));
+            setMapZoom(4);
+            setLoading(false);
+          }
+          return;
         }
+      } catch (e) { console.warn("Cache miss"); }
+
+      // Fetch Master Data
+      try {
+        // Check if we have master data cached
+        let masterData = await getMapFromDB('india_master_geo_v2');
+        if (!masterData) {
+          const res = await fetch(MASTER_MAP_URL);
+          if (!res.ok) throw new Error("Failed to download map");
+          masterData = await res.json();
+          await saveMapToDB('india_master_geo_v2', masterData);
+        }
+
+        if (!masterData || !masterData.features) throw new Error("Invalid Map Data");
+
+        // 3. ROBUST FILTERING
+        const filteredFeatures = masterData.features.filter(f => {
+          const p = f.properties;
+          // Check ALL common property names
+          const pName = (p.ST_NM || p.NAME_1 || p.statename || p.st_nm || "").toLowerCase();
+          const normalizedPName = normalizeStateName(pName);
+
+          // Strict check first, then inclusion
+          return normalizedPName === targetState || normalizedPName.includes(targetState);
+        });
+
+        if (filteredFeatures.length > 0) {
+          const finalData = { type: "FeatureCollection", features: filteredFeatures };
+          if (isMounted) {
+            setGeoData(finalData);
+            setMapCenter(calculateCentroid(filteredFeatures));
+            setMapZoom(4); // Reset Zoom on load
+            saveMapToDB(dbKey, finalData); // Save the GOOD data
+          }
+        } else {
+          console.error("State not found in GeoJSON properties:", targetState);
+          if (isMounted) setStatus(`Boundaries not found for ${stateName}`);
+        }
+
+      } catch (err) {
+        console.error(err);
+        if (isMounted) setStatus("Map Data Error");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     };
 
     loadMap();
@@ -188,10 +246,10 @@ const State3DMap = ({ stateName }) => {
   return (
     <div style={styles.container}>
       <div style={styles.mapFrame} onClick={() => { setSelectedRegion(null); setShowNoteModal(false); }}>
-        
+
         {/* Controls */}
         <div style={styles.noteIconWrapper}>
-             <NoteIcon filled={!!userNote} onClick={(e) => { e.stopPropagation(); setTempNoteText(userNote); setShowNoteModal(true); }} />
+          <NoteIcon filled={!!userNote} onClick={(e) => { e.stopPropagation(); setTempNoteText(userNote); setShowNoteModal(true); }} />
         </div>
         <div style={styles.zoomControls}>
           <ZoomIcon type="plus" onClick={handleZoomIn} />
@@ -212,31 +270,31 @@ const State3DMap = ({ stateName }) => {
 
         {/* Map Render */}
         {loading ? (
-            <div style={styles.loading}><div className="spinner"></div>{status}</div>
+          <div style={styles.loading}><div className="spinner"></div>{status}</div>
         ) : geoData ? (
           <ComposableMap projection="geoMercator" projectionConfig={{ scale: 1200 }} style={styles.svgMap}>
-             {/* Ensure the ZoomableGroup uses the state-controlled zoom and center.
+            {/* Ensure the ZoomableGroup uses the state-controlled zoom and center.
                  disablePanning is optional, but helps keep the map centered on the state.
              */}
-            <ZoomableGroup 
-                center={mapCenter} 
-                zoom={mapZoom}
-                minZoom={0.5} maxZoom={10}
-                filterZoomEvent={() => false} // Disable scroll wheel
-                onMoveEnd={({ coordinates, zoom }) => {
-                    // Optional: Update state if you want to allow panning to persist
-                    // setMapCenter(coordinates);
-                    // setMapZoom(zoom);
-                }}
-            > 
+            <ZoomableGroup
+              center={mapCenter}
+              zoom={mapZoom}
+              minZoom={0.5} maxZoom={10}
+              filterZoomEvent={() => false} // Disable scroll wheel
+              onMoveEnd={({ coordinates, zoom }) => {
+                // Optional: Update state if you want to allow panning to persist
+                // setMapCenter(coordinates);
+                // setMapZoom(zoom);
+              }}
+            >
               <Geographies geography={geoData}>
-                {({ geographies }) => 
-                   geographies.map((geo, index) => {
+                {({ geographies }) =>
+                  geographies.map((geo, index) => {
                     // Try getting district name from multiple common keys
                     const name = geo.properties.district || geo.properties.NAME_2 || geo.properties.dtname || "District";
                     const isHovered = hovered === geo.rsmKey;
                     const isSelected = selectedRegion?.name === name;
-                    
+
                     return (
                       <Geography
                         key={geo.rsmKey}
@@ -253,9 +311,9 @@ const State3DMap = ({ stateName }) => {
                         stroke="#fff"
                         strokeWidth={0.5}
                         style={{
-                            default: { outline: "none" },
-                            hover: { outline: "none" },
-                            pressed: { outline: "none" },
+                          default: { outline: "none" },
+                          hover: { outline: "none" },
+                          pressed: { outline: "none" },
                         }}
                         className="district-shape"
                       />
@@ -266,15 +324,15 @@ const State3DMap = ({ stateName }) => {
             </ZoomableGroup>
           </ComposableMap>
         ) : (
-           <div style={styles.loading}>{status}</div>
+          <div style={styles.loading}>{status}</div>
         )}
-        
+
         {/* Info Card */}
         {selectedRegion && (
           <div style={styles.infoCard} onClick={e => e.stopPropagation()}>
             <h4 style={styles.infoTitle}>{selectedRegion.name}</h4>
             <div style={styles.infoBody}>
-                 Code: {selectedRegion.properties.dt_code || selectedRegion.properties.id || "N/A"}
+              Code: {selectedRegion.properties.dt_code || selectedRegion.properties.id || "N/A"}
             </div>
             <button style={styles.closeBtn} onClick={() => setSelectedRegion(null)}>Close</button>
           </div>
@@ -294,11 +352,11 @@ const State3DMap = ({ stateName }) => {
 };
 
 const styles = {
-  container: { position: "relative", height: "100%", width: "100%" }, 
+  container: { position: "relative", height: "100%", width: "100%" },
   mapFrame: { height: "100%", width: "100%", transform: "perspective(1000px) rotateX(10deg)", borderRadius: "20px", background: "transparent", overflow: "hidden", position: "relative" },
   svgMap: { width: "100%", height: "100%", cursor: "default" },
   loading: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "#64748b", textAlign: "center", fontWeight: "600" },
-  
+
   noteIconWrapper: { position: "absolute", top: "15px", right: "15px", zIndex: 1100 },
   zoomControls: { position: "absolute", bottom: "30px", right: "20px", zIndex: 1100, display: "flex", flexDirection: "column", gap: "8px", background: "rgba(255,255,255,0.8)", backdropFilter: "blur(5px)", padding: "6px", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" },
   zoomBtn: { width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", background: "white", border: "1px solid #e2e8f0", borderRadius: "8px", cursor: "pointer", color: "#475569" },

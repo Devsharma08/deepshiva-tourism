@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Utensils, Plane, Train, Shield, Phone, 
+import {
+  Utensils, Plane, Train, Shield, Phone,
   TrendingUp, Users, Landmark, Award, ArrowRight, MapPin
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
@@ -27,7 +27,7 @@ const RegionalDashboard = () => {
 
   return (
     <div className="w-full bg-slate-50 min-h-screen">
-      
+
       {/* Wrapper to match sibling width (1200px) */}
       <div className="max-w-[1200px] px-2 py-12 font-sans">
 
@@ -71,7 +71,7 @@ const RegionalDashboard = () => {
 
         {/* --- SECTION 2: LOGISTICS GRID --- */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          
+
           {/* 1. Culinary Card */}
           <div className="rounded-3xl bg-white border border-slate-100 shadow-[0_15px_35px_-5px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col h-full hover:border-orange-200 transition-colors">
             {/* Header */}
@@ -81,15 +81,16 @@ const RegionalDashboard = () => {
               </div>
               <h3 className="font-bold text-slate-800 text-lg font-cinzel">Culinary Heritage</h3>
             </div>
-            
+
             {/* List */}
             <div className="p-5 space-y-3 overflow-y-auto max-h-[350px] custom-scrollbar">
               {data.food?.map((item, i) => (
                 <div key={i} className="flex items-center gap-4 p-2 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer border border-transparent hover:border-slate-100">
-                  <img 
-                    src={item.img} 
-                    alt={item.name} 
+                  <img
+                    src={item.img}
+                    alt={item.name}
                     className="w-12 h-12 rounded-lg object-cover shadow-sm group-hover:scale-105 transition-transform"
+                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=200&q=80"; }}
                   />
                   <div className="flex-1">
                     <div className="font-bold text-sm text-slate-700">{item.name}</div>
@@ -103,9 +104,9 @@ const RegionalDashboard = () => {
             </div>
             {/* Footer */}
             <div className="mt-auto p-4 border-t border-slate-50 bg-slate-50/50 text-center">
-               <button className="text-xs text-orange-600 font-bold uppercase tracking-wider hover:text-orange-700 flex items-center justify-center gap-1 mx-auto transition-colors">
-                 View Food Guide <ArrowRight size={12} />
-               </button>
+              <button className="text-xs text-orange-600 font-bold uppercase tracking-wider hover:text-orange-700 flex items-center justify-center gap-1 mx-auto transition-colors">
+                View Food Guide <ArrowRight size={12} />
+              </button>
             </div>
           </div>
 
@@ -119,41 +120,41 @@ const RegionalDashboard = () => {
             </div>
 
             <div className="p-6 flex flex-col gap-8 relative">
-               {/* Vertical Connector Line - Light Grey */}
-               <div className="absolute left-[47px] top-10 bottom-10 w-0.5 bg-slate-100" />
+              {/* Vertical Connector Line - Light Grey */}
+              <div className="absolute left-[47px] top-10 bottom-10 w-0.5 bg-slate-100" />
 
-               {/* Airport */}
-               <div className="relative flex items-start gap-5 z-10">
-                  <div className="w-10 h-10 rounded-full bg-white border-2 border-blue-100 flex items-center justify-center shadow-sm text-blue-500 shrink-0">
-                     <Plane size={16} />
-                  </div>
-                  <div>
-                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Major Airport</div>
-                     <div className="text-sm font-bold text-slate-700 leading-tight">{data.transport?.airport}</div>
-                  </div>
-               </div>
+              {/* Airport */}
+              <div className="relative flex items-start gap-5 z-10">
+                <div className="w-10 h-10 rounded-full bg-white border-2 border-blue-100 flex items-center justify-center shadow-sm text-blue-500 shrink-0">
+                  <Plane size={16} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Major Airport</div>
+                  <div className="text-sm font-bold text-slate-700 leading-tight">{data.transport?.airport}</div>
+                </div>
+              </div>
 
-               {/* Rail */}
-               <div className="relative flex items-start gap-5 z-10">
-                  <div className="w-10 h-10 rounded-full bg-white border-2 border-indigo-100 flex items-center justify-center shadow-sm text-indigo-500 shrink-0">
-                     <Train size={16} />
-                  </div>
-                  <div>
-                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Railway Junction</div>
-                     <div className="text-sm font-bold text-slate-700 leading-tight">{data.transport?.rail}</div>
-                  </div>
-               </div>
-               
-               {/* Road */}
-               <div className="relative flex items-start gap-5 z-10">
-                  <div className="w-10 h-10 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center shadow-sm text-slate-500 shrink-0">
-                     <MapPin size={16} />
-                  </div>
-                  <div>
-                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Highway Access</div>
-                     <div className="text-sm font-bold text-slate-700 leading-tight">{data.transport?.road}</div>
-                  </div>
-               </div>
+              {/* Rail */}
+              <div className="relative flex items-start gap-5 z-10">
+                <div className="w-10 h-10 rounded-full bg-white border-2 border-indigo-100 flex items-center justify-center shadow-sm text-indigo-500 shrink-0">
+                  <Train size={16} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Railway Junction</div>
+                  <div className="text-sm font-bold text-slate-700 leading-tight">{data.transport?.rail}</div>
+                </div>
+              </div>
+
+              {/* Road */}
+              <div className="relative flex items-start gap-5 z-10">
+                <div className="w-10 h-10 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center shadow-sm text-slate-500 shrink-0">
+                  <MapPin size={16} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Highway Access</div>
+                  <div className="text-sm font-bold text-slate-700 leading-tight">{data.transport?.road}</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -167,38 +168,38 @@ const RegionalDashboard = () => {
             </div>
 
             <div className="p-5 grid grid-cols-1 gap-3">
-               {/* Police */}
-               <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 hover:bg-red-50 hover:border-red-100 transition-colors cursor-pointer group">
-                  <div className="flex items-center gap-3">
-                     <div className="p-1.5 bg-white rounded-lg text-red-500 shadow-sm"><Shield size={16}/></div>
-                     <span className="font-bold text-slate-600 text-sm">Police</span>
-                  </div>
-                  <span className="text-lg font-black text-slate-800 group-hover:text-red-600 transition-colors">{data.safety?.police}</span>
-               </div>
+              {/* Police */}
+              <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 hover:bg-red-50 hover:border-red-100 transition-colors cursor-pointer group">
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 bg-white rounded-lg text-red-500 shadow-sm"><Shield size={16} /></div>
+                  <span className="font-bold text-slate-600 text-sm">Police</span>
+                </div>
+                <span className="text-lg font-black text-slate-800 group-hover:text-red-600 transition-colors">{data.safety?.police}</span>
+              </div>
 
-               {/* Medical */}
-               <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 hover:bg-green-50 hover:border-green-100 transition-colors cursor-pointer group">
-                  <div className="flex items-center gap-3">
-                     <div className="p-1.5 bg-white rounded-lg text-green-500 shadow-sm"><Users size={16}/></div>
-                     <span className="font-bold text-slate-600 text-sm">Ambulance</span>
-                  </div>
-                  <span className="text-lg font-black text-slate-800 group-hover:text-green-600 transition-colors">{data.safety?.ambulance}</span>
-               </div>
+              {/* Medical */}
+              <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 hover:bg-green-50 hover:border-green-100 transition-colors cursor-pointer group">
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 bg-white rounded-lg text-green-500 shadow-sm"><Users size={16} /></div>
+                  <span className="font-bold text-slate-600 text-sm">Ambulance</span>
+                </div>
+                <span className="text-lg font-black text-slate-800 group-hover:text-green-600 transition-colors">{data.safety?.ambulance}</span>
+              </div>
 
-               {/* Helpline */}
-               <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 hover:bg-blue-50 hover:border-blue-100 transition-colors cursor-pointer group">
-                  <div className="flex items-center gap-3">
-                     <div className="p-1.5 bg-white rounded-lg text-blue-500 shadow-sm"><Phone size={16}/></div>
-                     <span className="font-bold text-slate-600 text-sm">Helpline</span>
-                  </div>
-                  <span className="text-lg font-black text-slate-800 group-hover:text-blue-600 transition-colors">{data.safety?.touristHelpline}</span>
-               </div>
+              {/* Helpline */}
+              <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 hover:bg-blue-50 hover:border-blue-100 transition-colors cursor-pointer group">
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 bg-white rounded-lg text-blue-500 shadow-sm"><Phone size={16} /></div>
+                  <span className="font-bold text-slate-600 text-sm">Helpline</span>
+                </div>
+                <span className="text-lg font-black text-slate-800 group-hover:text-blue-600 transition-colors">{data.safety?.touristHelpline}</span>
+              </div>
             </div>
-            
+
             <div className="mt-auto px-6 py-4 bg-slate-50/50 text-center border-t border-slate-50">
-               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
-                 Tap numbers to dial
-               </p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+                Tap numbers to dial
+              </p>
             </div>
           </div>
 
