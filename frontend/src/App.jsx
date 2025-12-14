@@ -45,6 +45,11 @@ const RegionalDashboard = React.lazy(() => import('./SpecsComponent/Foot.jsx'));
 const TravelDashboard = React.lazy(() => import('./SpecsComponent/TravelDashboard.jsx'));
 const AuthPage = React.lazy(() => import('./pages/AuthPage'));
 const OnboardingPage = React.lazy(() => import('./pages/OnboardingPage'));
+const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
+
+// Activity tracking component
+import { useActivityTracker } from './hooks/useActivityTracker';
+const ActivityTracker = () => { useActivityTracker(); return null; };
 
 // Loading spinner component
 const LoadingSpinner = () => (
@@ -108,6 +113,7 @@ function App() {
 
   return (
     <AuthProvider>
+      <ActivityTracker />
       <div className='w-full h-full m-0 p-0'>
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
@@ -117,6 +123,7 @@ function App() {
             {/* Protected Routes */}
             <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
             <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
             <Route path="/foot" element={<ProtectedRoute><RegionalDashboard /></ProtectedRoute>} />
             <Route path="/booking" element={<ProtectedRoute><TravelDashboard /></ProtectedRoute>} />
