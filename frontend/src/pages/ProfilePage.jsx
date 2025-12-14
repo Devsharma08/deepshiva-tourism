@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { getActivityHistory, clearActivityHistory } from '../hooks/useActivityTracker';
-import { User, Mail, Calendar, MapPin, Heart, Trophy, Compass, Sparkles, ArrowLeft, Settings, LogOut, X, Clock, Trash2, Edit3, Check } from 'lucide-react';
+import { getLevelFromXP, getNextLevelXP } from '../hooks/useXPManager';
+import { User, Mail, Calendar, MapPin, Heart, Trophy, Compass, Sparkles, ArrowLeft, Settings, LogOut, X, Clock, Trash2, Edit3, Check, Flame } from 'lucide-react';
 
 function ProfilePage() {
     const navigate = useNavigate();
@@ -166,17 +167,35 @@ function ProfilePage() {
                         </button>
                     </div>
 
-                    {gamification && (
-                        <div className="mt-6 pt-6 border-t border-gray-100">
-                            <div className="flex items-center justify-between text-sm mb-2">
-                                <span className="text-gray-600">Experience Points</span>
-                                <span className="font-bold text-orange-600">{gamification.current_xp || 0} XP</span>
+                    {gamification && (() => {
+                        const currentXP = gamification.current_xp || 0;
+                        const currentLevel = getLevelFromXP(currentXP);
+                        const nextLevelXP = getNextLevelXP(currentXP);
+                        const prevLevelXP = currentLevel.xp;
+                        const progress = nextLevelXP > prevLevelXP
+                            ? ((currentXP - prevLevelXP) / (nextLevelXP - prevLevelXP)) * 100
+                            : 100;
+
+                        return (
+                            <div className="mt-6 pt-6 border-t border-gray-100">
+                                <div className="flex items-center justify-between text-sm mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-gray-600">Level {currentLevel.level}</span>
+                                        {gamification.login_streak > 1 && (
+                                            <span className="flex items-center gap-1 text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+                                                <Flame className="w-3 h-3" />
+                                                {gamification.login_streak} day streak
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className="font-bold text-orange-600">{currentXP} / {nextLevelXP} XP</span>
+                                </div>
+                                <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                                </div>
                             </div>
-                            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full transition-all" style={{ width: `${Math.min((gamification.current_xp || 0) % 100, 100)}%` }} />
-                            </div>
-                        </div>
-                    )}
+                        );
+                    })()}
                 </div>
 
                 {/* Quick Actions */}
@@ -217,25 +236,50 @@ function ProfilePage() {
                             </button>
                         )}
                     </div>
-                    {activityHistory.length > 0 ? (
-                        <div className="space-y-2">
-                            {activityHistory.slice(0, 8).map((item, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => navigate(item.path)}
-                                    className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-orange-50 rounded-xl transition-colors text-left group"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-xl">{item.icon}</span>
-                                        <span className="font-medium text-gray-700 group-hover:text-orange-600 capitalize">{item.name}</span>
-                                    </div>
-                                    <span className="text-xs text-gray-400">{timeAgo(item.timestamp)}</span>
-                                </button>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-center py-6 text-gray-400">No recent activity</p>
-                    )}
+                    {(() => {
+                        // Filter out Profile and group consecutive same activities
+                        const filtered = activityHistory.filter(item =>
+                            item.name !== 'Profile' && item.path !== '/profile'
+                        );
+
+                        const grouped = [];
+                        for (const item of filtered) {
+                            const last = grouped[grouped.length - 1];
+                            if (last && last.name === item.name) {
+                                last.count = (last.count || 1) + 1;
+                            } else {
+                                grouped.push({ ...item, count: 1 });
+                            }
+                        }
+
+                        return grouped.length > 0 ? (
+                            <div className="space-y-2">
+                                {grouped.slice(0, 8).map((item, index) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => item.path && navigate(item.path)}
+                                        disabled={!item.path}
+                                        className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-orange-50 rounded-xl transition-colors text-left group disabled:cursor-default disabled:hover:bg-gray-50"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xl">{item.icon}</span>
+                                            <span className="font-medium text-gray-700 group-hover:text-orange-600 capitalize">
+                                                {item.name}
+                                                {item.count > 1 && (
+                                                    <span className="ml-2 text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+                                                        ×{item.count}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
+                                        <span className="text-xs text-gray-400">{timeAgo(item.timestamp)}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-center py-6 text-gray-400">No recent activity</p>
+                        );
+                    })()}
                 </div>
 
                 {/* Interests */}

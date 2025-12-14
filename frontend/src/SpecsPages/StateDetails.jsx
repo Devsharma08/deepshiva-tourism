@@ -731,6 +731,7 @@ import { FashionProgressBar } from "../assets/ScrollingEffect";
 import NewsCarousel from "../SpecsComponent/NewsComponent";
 import WikiStateCard from "../SpecsComponent/StateDetailPage.jsx";
 import RegionalDashboard from "../SpecsComponent/Foot.jsx";
+import { cachedFetch } from "../utils/ContextManager";
 
 // --- CONFIG ---
 const API_URL = "http://localhost:5000/api/destinations"; // Corrected Port
@@ -852,12 +853,14 @@ const StateDetails = () => {
     initData();
   }, [stateName]);
 
-  // 2. LIVE DATA SYNC
+  // 2. LIVE DATA SYNC (with caching)
   useEffect(() => {
     const fetchDestinations = async () => {
       try {
-        const res = await fetch(API_URL);
-        const allData = await res.json();
+        const allData = await cachedFetch(API_URL, {
+          cacheTTL: 60 * 60 * 1000, // 1 hour
+          cacheKey: 'all_destinations'
+        });
 
         const filtered = allData.filter(item => {
           const dbState = item.state.toLowerCase().replace(/&/g, 'and').trim();

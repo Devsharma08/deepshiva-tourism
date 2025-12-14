@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ExternalLink, Calendar } from "lucide-react";
+import { cachedFetch } from "../utils/ContextManager";
 
 // Accept stateName as a prop for reliability, fall back to URL params
 const NewsCarousel = ({ stateName: propStateName }) => {
   const params = useParams();
   // Priority: Prop > URL Param > Default "India"
   const displayState = propStateName || params.stateName || "India";
-  
+
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -51,20 +52,23 @@ const NewsCarousel = ({ stateName: propStateName }) => {
       try {
         // Use displayState here to ensure we search for the specific region
         const query = `${displayState} tourism India travel`;
-        
+
         // Safely access env var or use empty string
-        const apiKey = import.meta.env?.VITE_NEWS_API_KEY || ""; 
-        
+        const apiKey = import.meta.env?.VITE_NEWS_API_KEY || "";
+
         // Only fetch if we have a key, otherwise jump straight to mock
         if (!apiKey) {
-           throw new Error("No API Key");
+          throw new Error("No API Key");
         }
 
         const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&pageSize=6&apiKey=${apiKey}`;
-        
-        const response = await fetch(url);
-        const data = await response.json();
-        
+
+        // Cache news for 6 hours
+        const data = await cachedFetch(url, {
+          cacheTTL: 6 * 60 * 60 * 1000,
+          cacheKey: `news_${displayState.replace(/\s/g, '_')}`
+        });
+
         if (data.articles && data.articles.length > 0) {
           setNews(data.articles.slice(0, 6));
         } else {
@@ -109,7 +113,7 @@ const NewsCarousel = ({ stateName: propStateName }) => {
 
   return (
     <div style={styles.container}>
-      
+
       {/* Header Section (Top Left) */}
       <div style={styles.header}>
         <h3 style={styles.heading}>Regional Updates</h3>
@@ -118,28 +122,28 @@ const NewsCarousel = ({ stateName: propStateName }) => {
 
       {/* Carousel Container */}
       <div style={styles.carouselViewport}>
-        
+
         {/* Cards Track */}
         <div style={styles.cardsContainer}>
           {news.map((item, index) => {
-            let position = 'hidden'; 
+            let position = 'hidden';
             if (index === currentIndex) position = 'active';
             else if (index === (currentIndex + 1) % news.length) position = 'next';
             else if (index === (currentIndex - 1 + news.length) % news.length) position = 'prev';
 
             return (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className={`news-card ${position}`}
                 style={{ ...styles.card, ...styles[position] }}
               >
                 {/* Image Section */}
                 <div style={styles.imageContainer}>
-                  <img 
-                    src={item.urlToImage || item.image || "https://images.unsplash.com/photo-1596392927810-736021648a90?q=80&w=800&auto=format&fit=crop"} 
-                    alt={item.title} 
-                    style={styles.image} 
-                    onError={(e) => {e.target.src = "https://images.unsplash.com/photo-1596392927810-736021648a90?q=80&w=800&auto=format&fit=crop"}}
+                  <img
+                    src={item.urlToImage || item.image || "https://images.unsplash.com/photo-1596392927810-736021648a90?q=80&w=800&auto=format&fit=crop"}
+                    alt={item.title}
+                    style={styles.image}
+                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1596392927810-736021648a90?q=80&w=800&auto=format&fit=crop" }}
                   />
                   <div style={styles.imageOverlay}></div>
                   <div style={styles.dateBadge}>
@@ -152,7 +156,7 @@ const NewsCarousel = ({ stateName: propStateName }) => {
                 <div style={styles.content}>
                   <h4 style={styles.cardTitle}>{item.title}</h4>
                   <p style={styles.cardDesc}>{item.description ? item.description.substring(0, 80) : "Latest updates from the region..."}...</p>
-                  
+
                   <a href={item.url} target="_blank" rel="noopener noreferrer" style={styles.readMoreBtn}>
                     Read Full Story <ExternalLink size={12} />
                   </a>
@@ -167,11 +171,11 @@ const NewsCarousel = ({ stateName: propStateName }) => {
           <button onClick={prevSlide} style={styles.navButton}>
             <ChevronLeft size={20} />
           </button>
-          
+
           <div style={styles.dots}>
             {news.map((_, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 style={{
                   ...styles.dot,
                   background: idx === currentIndex ? '#3b82f6' : 'rgba(255,255,255,0.2)'

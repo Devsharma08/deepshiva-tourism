@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Plane, Clock, MapPin, Shield, CheckCircle, Users, 
-  Wifi, Coffee, Tv, Luggage, ArrowLeft, Share2, 
+import {
+  Plane, Clock, MapPin, Shield, CheckCircle, Users,
+  Wifi, Coffee, Tv, Luggage, ArrowLeft, Share2,
   Download, Calendar, Navigation, Zap, Battery
 } from 'lucide-react';
+import { cachedFetch } from '../utils/ContextManager';
 
 const FlightDetails = () => {
   const { id } = useParams();
@@ -24,8 +25,10 @@ const FlightDetails = () => {
     // Fetch flight details
     const fetchFlightDetails = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/flights/${id}`);
-        const data = await response.json();
+        const data = await cachedFetch(`http://localhost:5000/api/flights/${id}`, {
+          cacheTTL: 60 * 60 * 1000, // 1 hour
+          cacheKey: `flight_${id}`
+        });
         setFlight(data);
       } catch (error) {
         console.error('Error fetching flight details:', error);
@@ -109,7 +112,7 @@ const FlightDetails = () => {
                 </span>
               </div>
             </div>
-            
+
             <div className="flex gap-3">
               <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200">
                 <Share2 className="w-5 h-5 text-slate-600" />
@@ -127,7 +130,7 @@ const FlightDetails = () => {
             {/* Flight Timeline */}
             <div className="glass-effect rounded-2xl p-6">
               <h2 className="text-xl font-bold text-slate-900 mb-6">Flight Details</h2>
-              
+
               <div className="space-y-6">
                 {/* Departure */}
                 <div className="flex items-center justify-between">
@@ -140,12 +143,12 @@ const FlightDetails = () => {
                       <div className="text-slate-600">{flight.origin}</div>
                     </div>
                   </div>
-                  
+
                   <div className="text-center">
                     <div className="text-lg font-bold text-slate-900">{flight.duration}</div>
                     <div className="text-sm text-slate-500">Non-stop</div>
                   </div>
-                  
+
                   <div className="text-right">
                     <div className="text-2xl font-bold">{flight.arrivalTime}</div>
                     <div className="text-slate-600">{flight.destination}</div>
@@ -154,7 +157,7 @@ const FlightDetails = () => {
 
                 {/* Progress Bar */}
                 <div className="relative h-2 bg-slate-200 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="absolute h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full"
                     style={{ width: '100%' }}
                   />
@@ -177,7 +180,7 @@ const FlightDetails = () => {
             {/* Seat Selection */}
             <div className="glass-effect rounded-2xl p-6">
               <h2 className="text-xl font-bold text-slate-900 mb-6">Select Seats</h2>
-              
+
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-4">
                   <div className="text-slate-700">Cabin Layout</div>
@@ -185,11 +188,11 @@ const FlightDetails = () => {
                     Selected: {selectedSeats.length} seat{selectedSeats.length !== 1 ? 's' : ''}
                   </div>
                 </div>
-                
+
                 {/* Simplified Seat Map */}
                 <div className="bg-slate-100 rounded-xl p-6">
                   <div className="text-center mb-4 text-slate-600">Business Class</div>
-                  
+
                   {[...Array(6)].map((_, row) => (
                     <div key={row} className="flex justify-center gap-8 mb-6">
                       {['A', 'B', '', 'C', 'D'].map((seat, idx) => (
@@ -204,11 +207,10 @@ const FlightDetails = () => {
                                   : [...prev, seatId]
                               );
                             }}
-                            className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                              selectedSeats.includes(`${row + 1}${seat}`)
+                            className={`w-12 h-12 rounded-lg flex items-center justify-center ${selectedSeats.includes(`${row + 1}${seat}`)
                                 ? 'bg-indigo-500 text-white'
                                 : 'bg-white hover:bg-slate-200'
-                            }`}
+                              }`}
                           >
                             {row + 1}{seat}
                           </button>
@@ -218,7 +220,7 @@ const FlightDetails = () => {
                       ))}
                     </div>
                   ))}
-                  
+
                   <div className="text-center mt-4 text-slate-600">Economy Class</div>
                 </div>
               </div>
@@ -242,7 +244,7 @@ const FlightDetails = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 <button className="px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800">
                   Save Selection
                 </button>
@@ -252,7 +254,7 @@ const FlightDetails = () => {
             {/* Add-ons */}
             <div className="glass-effect rounded-2xl p-6">
               <h2 className="text-xl font-bold text-slate-900 mb-6">Add-ons</h2>
-              
+
               <div className="grid md:grid-cols-2 gap-4">
                 {[
                   { id: 'extraBaggage', label: 'Extra Baggage', price: 50, icon: Luggage },
@@ -264,11 +266,10 @@ const FlightDetails = () => {
                   return (
                     <label
                       key={addon.id}
-                      className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                        addOns[addon.id]
+                      className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${addOns[addon.id]
                           ? 'border-indigo-500 bg-indigo-50'
                           : 'border-slate-200 hover:border-slate-300'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <input
@@ -298,41 +299,41 @@ const FlightDetails = () => {
             {/* Price Summary */}
             <div className="glass-effect rounded-2xl p-6 sticky top-24">
               <h2 className="text-xl font-bold text-slate-900 mb-6">Price Summary</h2>
-              
+
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Flight × {passengerCount}</span>
                   <span className="font-bold">${(flight.price * passengerCount).toFixed(2)}</span>
                 </div>
-                
+
                 {addOns.extraBaggage && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Extra Baggage</span>
                     <span>$50.00</span>
                   </div>
                 )}
-                
+
                 {addOns.priorityBoarding && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Priority Boarding</span>
                     <span>$30.00</span>
                   </div>
                 )}
-                
+
                 {addOns.meal && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Gourmet Meal</span>
                     <span>$25.00</span>
                   </div>
                 )}
-                
+
                 {addOns.wifi && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">In-flight WiFi</span>
                     <span>$20.00</span>
                   </div>
                 )}
-                
+
                 <div className="border-t pt-4">
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
@@ -360,7 +361,7 @@ const FlightDetails = () => {
               <button className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-xl transition-all hover:scale-[1.02]">
                 Complete Booking
               </button>
-              
+
               <p className="text-center text-sm text-slate-500 mt-3">
                 You won't be charged until confirmation
               </p>

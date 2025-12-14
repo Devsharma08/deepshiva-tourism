@@ -50,7 +50,9 @@ const ItineraryPlanner = React.lazy(() => import('./pages/ItineraryPlanner'));
 
 // Activity tracking component
 import { useActivityTracker } from './hooks/useActivityTracker';
+import { useXPManager } from './hooks/useXPManager';
 const ActivityTracker = () => { useActivityTracker(); return null; };
+const XPManager = () => { useXPManager(); return null; };
 
 // Loading spinner component
 const LoadingSpinner = () => (
@@ -115,6 +117,7 @@ function App() {
   return (
     <AuthProvider>
       <ActivityTracker />
+      <XPManager />
       <div className='w-full h-full m-0 p-0'>
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>

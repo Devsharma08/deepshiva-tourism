@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, MapPin, ChevronDown, Loader2, Thermometer, Users, Building2 } from 'lucide-react';
+import { cachedFetch } from '../utils/ContextManager';
 
 const DynamicStateCard = ({ data }) => {
   // --- State ---
@@ -130,43 +131,57 @@ const DynamicStateCard = ({ data }) => {
     'Ellora': 'Ellora Caves',
   };
 
-  // --- API Fetch with Fallback ---
+  // --- API Fetch with Caching for Offline Support ---
   useEffect(() => {
     const fetchHistory = async () => {
       setLoading(true);
       try {
         // Get the disambiguated title or use original
         const wikiTitle = WIKI_DISAMBIGUATION[selectedEntity] || selectedEntity;
+        const cacheKey = `wiki_${wikiTitle.replace(/\s/g, '_')}`;
 
-        // First attempt: Direct title search
-        let endpoint = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(wikiTitle)}`;
-        let response = await fetch(endpoint);
-        let result = await response.json();
-        let pages = result.query.pages;
-        let pageId = Object.keys(pages)[0];
+        // Try cached fetch with 24h TTL for Wikipedia content
+        const endpoint = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(wikiTitle)}`;
 
-        // If direct search fails (pageId is -1 or no extract), try search API
-        if (pageId === '-1' || !pages[pageId].extract) {
-          // Fallback: Use Wikipedia search API with "India" context
-          const searchEndpoint = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&list=search&srsearch=${encodeURIComponent(selectedEntity + ' India')}&srlimit=1`;
-          const searchResponse = await fetch(searchEndpoint);
-          const searchResult = await searchResponse.json();
-
-          if (searchResult.query.search && searchResult.query.search.length > 0) {
-            const bestMatch = searchResult.query.search[0].title;
-            // Now fetch the extract for the best match
-            endpoint = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(bestMatch)}`;
-            response = await fetch(endpoint);
-            result = await response.json();
-            pages = result.query.pages;
-            pageId = Object.keys(pages)[0];
-          }
+        let result;
+        try {
+          result = await cachedFetch(endpoint, { cacheTTL: 24 * 60 * 60 * 1000, cacheKey });
+        } catch {
+          // Network error, will use stale cache if available via cachedFetch
+          result = null;
         }
 
-        if (pages[pageId] && pages[pageId].extract) {
-          setWikiText(pages[pageId].extract);
+        if (result) {
+          let pages = result.query.pages;
+          let pageId = Object.keys(pages)[0];
+
+          // If direct search fails, try search API
+          if (pageId === '-1' || !pages[pageId].extract) {
+            const searchEndpoint = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&list=search&srsearch=${encodeURIComponent(selectedEntity + ' India')}&srlimit=1`;
+            const searchCacheKey = `wiki_search_${selectedEntity.replace(/\s/g, '_')}`;
+
+            try {
+              const searchResult = await cachedFetch(searchEndpoint, { cacheTTL: 24 * 60 * 60 * 1000, cacheKey: searchCacheKey });
+
+              if (searchResult?.query?.search?.length > 0) {
+                const bestMatch = searchResult.query.search[0].title;
+                const matchEndpoint = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(bestMatch)}`;
+                const matchCacheKey = `wiki_${bestMatch.replace(/\s/g, '_')}`;
+
+                result = await cachedFetch(matchEndpoint, { cacheTTL: 24 * 60 * 60 * 1000, cacheKey: matchCacheKey });
+                pages = result.query.pages;
+                pageId = Object.keys(pages)[0];
+              }
+            } catch { /* ignore search errors */ }
+          }
+
+          if (pages[pageId] && pages[pageId].extract) {
+            setWikiText(pages[pageId].extract);
+          } else {
+            setWikiText("Historical records are currently unavailable for this specific region.");
+          }
         } else {
-          setWikiText("Historical records are currently unavailable for this specific region.");
+          setWikiText("Unable to connect. Content available when online.");
         }
       } catch (error) {
         setWikiText("Unable to connect to the knowledge archives.");

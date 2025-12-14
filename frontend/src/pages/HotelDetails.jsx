@@ -5,6 +5,7 @@ import {
   Umbrella, Tv, Wind, Users, Calendar, Clock, Shield,
   Heart, Share2, Navigation, CheckCircle, X, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { cachedFetch } from '../utils/ContextManager';
 
 const HotelDetails = () => {
   const { id } = useParams();
@@ -22,15 +23,17 @@ const HotelDetails = () => {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     setCheckIn(today.toISOString().split('T')[0]);
     setCheckOut(tomorrow.toISOString().split('T')[0]);
-    
+
     // Fetch hotel details
     const fetchHotelDetails = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/hotels/${id}`);
-        const data = await response.json();
+        const data = await cachedFetch(`http://localhost:5000/api/hotels/${id}`, {
+          cacheTTL: 60 * 60 * 1000, // 1 hour
+          cacheKey: `hotel_${id}`
+        });
         setHotel(data);
       } catch (error) {
         console.error('Error fetching hotel details:', error);
@@ -125,9 +128,9 @@ const HotelDetails = () => {
                 </span>
               </div>
             </div>
-            
+
             <div className="flex gap-3">
-              <button 
+              <button
                 onClick={() => setLiked(!liked)}
                 className={`p-3 rounded-full ${liked ? 'bg-red-50' : 'bg-slate-100'} hover:bg-slate-200`}
               >
@@ -164,14 +167,13 @@ const HotelDetails = () => {
                 </button>
               </div>
             </div>
-            
+
             {hotel.images.slice(1, 5).map((image, index) => (
               <button
                 key={index}
                 onClick={() => setSelectedImage(index + 1)}
-                className={`relative h-48 rounded-xl overflow-hidden ${
-                  selectedImage === index + 1 ? 'ring-2 ring-indigo-500' : ''
-                }`}
+                className={`relative h-48 rounded-xl overflow-hidden ${selectedImage === index + 1 ? 'ring-2 ring-indigo-500' : ''
+                  }`}
               >
                 <img
                   src={image}
@@ -193,7 +195,7 @@ const HotelDetails = () => {
             <div className="glass-effect rounded-2xl p-6">
               <h2 className="text-xl font-bold text-slate-900 mb-4">About this property</h2>
               <p className="text-slate-700 leading-relaxed mb-6">{hotel.description}</p>
-              
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {amenities.slice(0, 8).map((amenity, index) => {
                   const Icon = amenity.icon;
@@ -210,7 +212,7 @@ const HotelDetails = () => {
             {/* Rooms */}
             <div className="glass-effect rounded-2xl p-6">
               <h2 className="text-xl font-bold text-slate-900 mb-6">Available Rooms</h2>
-              
+
               <div className="space-y-4">
                 {[
                   { type: 'Deluxe King Room', size: '45 m²', view: 'City View', price: hotel.price },
@@ -225,7 +227,7 @@ const HotelDetails = () => {
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    
+
                     <div className="flex-1">
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -241,7 +243,7 @@ const HotelDetails = () => {
                           <div className="text-sm text-slate-500">per night</div>
                         </div>
                       </div>
-                      
+
                       <div className="flex flex-wrap gap-2 mb-4">
                         {['Free cancellation', 'Breakfast included', 'Mobile key', '24/7 room service'].map((feature, i) => (
                           <span key={i} className="px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs">
@@ -249,7 +251,7 @@ const HotelDetails = () => {
                           </span>
                         ))}
                       </div>
-                      
+
                       <button className="px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800">
                         Select Room
                       </button>
@@ -262,13 +264,13 @@ const HotelDetails = () => {
             {/* Location */}
             <div className="glass-effect rounded-2xl p-6">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Location</h2>
-              
+
               <div className="mb-4">
                 <div className="flex items-center gap-2 text-slate-700 mb-2">
                   <MapPin className="w-5 h-5 text-indigo-500" />
                   <span className="font-medium">{hotel.location}</span>
                 </div>
-                
+
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                   <div className="p-3 bg-slate-50 rounded-lg">
                     <div className="text-sm text-slate-500">Airport</div>
@@ -288,7 +290,7 @@ const HotelDetails = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Map Placeholder */}
               <div className="h-64 bg-gradient-to-br from-slate-200 to-slate-300 rounded-xl flex items-center justify-center">
                 <div className="text-center">
@@ -344,7 +346,7 @@ const HotelDetails = () => {
                     />
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -398,17 +400,17 @@ const HotelDetails = () => {
                     </span>
                     <span className="font-bold">${calculateTotal().toFixed(2)}</span>
                   </div>
-                  
+
                   <div className="flex justify-between">
                     <span className="text-slate-600">Service fee</span>
                     <span>$45.00</span>
                   </div>
-                  
+
                   <div className="flex justify-between">
                     <span className="text-slate-600">Taxes</span>
                     <span>$32.50</span>
                   </div>
-                  
+
                   <div className="border-t pt-2">
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total</span>
@@ -418,7 +420,7 @@ const HotelDetails = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="text-center text-sm text-slate-500 mb-4">
                   Price includes all fees and taxes
                 </div>
@@ -443,7 +445,7 @@ const HotelDetails = () => {
               <button className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-xl transition-all hover:scale-[1.02]">
                 Reserve Now
               </button>
-              
+
               <p className="text-center text-sm text-slate-500 mt-3">
                 You can cancel for free within 24 hours
               </p>
@@ -459,17 +461,17 @@ const HotelDetails = () => {
                     <span className="font-bold text-emerald-600">{hotel.sustainabilityScore}/100</span>
                   </div>
                   <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-emerald-500 rounded-full"
                       style={{ width: `${hotel.sustainabilityScore}%` }}
                     />
                   </div>
                 </div>
-                
+
                 <div className="text-sm text-slate-600">
                   This property has implemented:
                 </div>
-                
+
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-emerald-500" />

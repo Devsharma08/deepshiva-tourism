@@ -34,23 +34,23 @@
 //       try {
 //         // Unique cache key for Highcharts version
 //         const cachedMap = await getMapFromDB('india_states_highcharts_v1');
-        
+
 //         if (cachedMap) {
 //           setGeoData(cachedMap);
 //         } else {
 //           console.log("Fetching map from Highcharts CDN...");
 //           const res = await fetch(INDIA_TOPO_URL);
-          
+
 //           if (!res.ok) throw new Error(`Failed to load map: ${res.status}`);
-          
+
 //           const topology = await res.json();
-          
+
 //           // --- SMART LAYER DETECTION ---
 //           // Highcharts uses standard TopoJSON but keys vary (e.g., 'default', 'in-all').
 //           // This line grabs the first available map layer automatically.
 //           const layerKey = Object.keys(topology.objects)[0]; 
 //           const geojson = topojson.feature(topology, topology.objects[layerKey]);
-          
+
 //           await saveMapToDB('india_states_highcharts_v1', geojson);
 //           setGeoData(geojson);
 //         }
@@ -71,7 +71,7 @@
 
 //   return (
 //     <div style={styles.pageContainer}>
-      
+
 //       {/* Stats Header - Top Right */}
 //       <div style={styles.statsHeader}>
 //          <div style={styles.statItem}>
@@ -104,7 +104,7 @@
 //               {({ geographies }) =>
 //                 geographies.map((geo) => {
 //                   const props = geo.properties;
-                  
+
 //                   // Highcharts often uses 'name' or 'hc-key'. We prioritize 'name'.
 //                   const rawName = props.name || props["hc-key"] || "Unknown";
 //                   const stateName = NAME_FIXES[rawName] || rawName;
@@ -120,13 +120,13 @@
 //                       }}
 //                       onMouseEnter={() => setHoveredRegion(geo.rsmKey)}
 //                       onMouseLeave={() => setHoveredRegion(null)}
-                      
+
 //                       fill={isHovered ? "#FFFFFF" : getStateColor(stateName)}
 //                       stroke="#FFFFFF"
 //                       strokeWidth={0.5}
 //                       className="state-path"
 //                       transform={isHovered ? "translate(0, -5)" : "translate(0, 0)"}
-                      
+
 //                       data-tooltip-id="india-tooltip"
 //                       data-tooltip-content={stateName}
 //                     />
@@ -136,7 +136,7 @@
 //             </Geographies>
 //           </g>
 //         </ComposableMap>
-        
+
 //         <Tooltip 
 //             id="india-tooltip" 
 //             style={{ 
@@ -173,7 +173,7 @@
 //     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
 //     overflow: "hidden", fontFamily: "'Inter', sans-serif", position: "relative"
 //   },
-  
+
 //   // Card Positioned Top Right
 //   statsHeader: {
 //     position: "absolute", 
@@ -321,7 +321,7 @@
 //   }, []);
 
 //   // --- 2. HELPERS ---
-  
+
 //   const calculateDistance = (lat1, lon1, lat2, lon2) => {
 //     if (!lat1 || !lat2) return 0;
 //     const R = 6371; 
@@ -342,7 +342,7 @@
 //     }
 
 //     const stats = regionStats[name];
-    
+
 //     // Fallback: Grey if no data found
 //     if (!stats) return "#e2e8f0"; 
 
@@ -369,7 +369,7 @@
 
 //   return (
 //     <div style={styles.pageContainer}>
-      
+
 //       {/* Header Controls */}
 //       <div style={styles.statsHeader}>
 //          <div style={styles.controlsRow}>
@@ -403,7 +403,7 @@
 //                   const rawName = props.name || props["hc-key"] || "Unknown";
 //                   const stateName = NAME_FIXES[rawName] || rawName;
 //                   const isHovered = hoveredRegion === geo.rsmKey;
-                  
+
 //                   const stats = regionStats[stateName];
 //                   const center = STATE_CENTERS[stateName];
 
@@ -434,12 +434,12 @@
 //                       }}
 //                       onMouseEnter={() => setHoveredRegion(geo.rsmKey)}
 //                       onMouseLeave={() => setHoveredRegion(null)}
-                      
+
 //                       fill={isHovered ? "#FFFFFF" : getRegionStyle(stateName)}
 //                       stroke="#FFFFFF"
 //                       strokeWidth={0.5}
 //                       className="state-path"
-                      
+
 //                       data-tooltip-id="india-tooltip"
 //                       data-tooltip-content={tooltipContent}
 //                     />
@@ -449,7 +449,7 @@
 //             </Geographies>
 //           </g>
 //         </ComposableMap>
-        
+
 //         <Tooltip 
 //             id="india-tooltip" 
 //             style={{ 
@@ -509,17 +509,17 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 import { Tooltip } from "react-tooltip";
-import * as topojson from "topojson-client"; 
-import { getMapFromDB, saveMapToDB, logActivity } from "../utils/ContextManager";
-import { Eye, EyeOff } from "lucide-react"; 
+import * as topojson from "topojson-client";
+import { getMapFromDB, saveMapToDB, logActivity, cachedFetch } from "../utils/ContextManager";
+import { Eye, EyeOff } from "lucide-react";
 
 // --- CONFIG ---
-const API_BASE = "http://localhost:5000/api"; 
+const API_BASE = "http://localhost:5000/api";
 const INDIA_TOPO_URL = "https://code.highcharts.com/mapdata/countries/in/custom/in-all-disputed.topo.json";
 
 // --- COLORS ---
 const PASTEL_COLORS = [
-  "#A7C7E7", "#FDFD96", "#77DD77", "#FF6961", "#B39EB5", 
+  "#A7C7E7", "#FDFD96", "#77DD77", "#FF6961", "#B39EB5",
   "#FFB7B2", "#FFDAC1", "#E2F0CB", "#B5EAD7", "#C7CEEA"
 ];
 
@@ -546,10 +546,10 @@ const India3D = () => {
   const [geoData, setGeoData] = useState(null);
   const [hoveredRegion, setHoveredRegion] = useState(null);
   const [viewMode, setViewMode] = useState("default");
-  
+
   // LIVE DATA STATES
   const [regionStats, setRegionStats] = useState({});
-  const [destinations, setDestinations] = useState([]); 
+  const [destinations, setDestinations] = useState([]);
   const [hideCrowded, setHideCrowded] = useState(false); // Toggle State
 
   useEffect(() => {
@@ -562,7 +562,7 @@ const India3D = () => {
         } else {
           const res = await fetch(INDIA_TOPO_URL);
           const topology = await res.json();
-          const layerKey = Object.keys(topology.objects)[0]; 
+          const layerKey = Object.keys(topology.objects)[0];
           const geojson = topojson.feature(topology, topology.objects[layerKey]);
           await saveMapToDB('india_states_v2', geojson);
           setGeoData(geojson);
@@ -570,17 +570,20 @@ const India3D = () => {
       } catch (error) { console.error("Map Error:", error); }
     };
 
-    // 2. Load Stats & Destinations
+    // 2. Load Stats & Destinations (with caching)
     const loadData = async () => {
-        try {
-            const [statsRes, destRes] = await Promise.all([
-                fetch(`${API_BASE}/state-stats`),
-                fetch(`${API_BASE}/destinations`)
-            ]);
-            
-            if (statsRes.ok) setRegionStats(await statsRes.json());
-            if (destRes.ok) setDestinations(await destRes.json());
-        } catch (error) { console.error("Backend Error:", error); }
+      try {
+        // Cache for 1 hour (3600000ms)
+        const CACHE_TTL = 60 * 60 * 1000;
+
+        const [stats, dests] = await Promise.all([
+          cachedFetch(`${API_BASE}/state-stats`, { cacheTTL: CACHE_TTL, cacheKey: 'state_stats' }),
+          cachedFetch(`${API_BASE}/destinations`, { cacheTTL: CACHE_TTL, cacheKey: 'destinations_list' })
+        ]);
+
+        if (stats) setRegionStats(stats);
+        if (dests) setDestinations(dests);
+      } catch (error) { console.error("Backend Error:", error); }
     };
 
     loadMapData();
@@ -591,9 +594,9 @@ const India3D = () => {
   const getRegionStyle = (name) => {
     // Default Mode
     if (viewMode === "default") {
-        let hash = 0;
-        for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-        return PASTEL_COLORS[Math.abs(hash) % PASTEL_COLORS.length];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      return PASTEL_COLORS[Math.abs(hash) % PASTEL_COLORS.length];
     }
 
     const stats = regionStats[name];
@@ -601,64 +604,64 @@ const India3D = () => {
 
     // Carbon Mode (Green to Red)
     if (viewMode === "carbon") {
-        if (stats.carbon_factor >= 1.5) return "#ef4444"; 
-        if (stats.carbon_factor >= 1.2) return "#f59e0b"; 
-        return "#22c55e"; 
+      if (stats.carbon_factor >= 1.5) return "#ef4444";
+      if (stats.carbon_factor >= 1.2) return "#f59e0b";
+      return "#22c55e";
     }
 
     // Footfall Mode (Blue Heatmap)
     if (viewMode === "footfall") {
-        if (stats.footfall > 150000) return "#1e3a8a"; // Extreme
-        if (stats.footfall > 80000) return "#1d4ed8";  // High
-        if (stats.footfall > 30000) return "#60a5fa";  // Medium
-        if (stats.footfall > 5000) return "#93c5fd";   // Low
-        return "#dbeafe"; // Very Low
+      if (stats.footfall > 150000) return "#1e3a8a"; // Extreme
+      if (stats.footfall > 80000) return "#1d4ed8";  // High
+      if (stats.footfall > 30000) return "#60a5fa";  // Medium
+      if (stats.footfall > 5000) return "#93c5fd";   // Low
+      return "#dbeafe"; // Very Low
     }
   };
 
   const getMarkerColor = (footfall) => {
-      if (footfall > 40000) return "#ef4444"; // Red (Crowded)
-      if (footfall > 15000) return "#f59e0b"; // Orange (Moderate)
-      return "#22c55e"; // Green (Peaceful)
+    if (footfall > 40000) return "#ef4444"; // Red (Crowded)
+    if (footfall > 15000) return "#f59e0b"; // Orange (Moderate)
+    return "#22c55e"; // Green (Peaceful)
   };
 
   if (!geoData) return <div style={styles.loading}>Connecting to Live Sensors...</div>;
 
   return (
     <div style={styles.pageContainer}>
-      
+
       {/* HEADER */}
       <div style={styles.statsHeader}>
-         <div style={styles.controlsRow}>
-            <button style={viewMode === 'default' ? styles.activeBtn : styles.btn} onClick={() => setViewMode('default')}>Explore</button>
-            <button style={viewMode === 'footfall' ? styles.activeBtn : styles.btn} onClick={() => setViewMode('footfall')}>Crowd Density</button>
-            <button style={viewMode === 'carbon' ? styles.activeBtn : styles.btn} onClick={() => setViewMode('carbon')}>Eco Impact</button>
-         </div>
-         
-         {/* HIDE TOGGLE */}
-         <button 
-            onClick={() => setHideCrowded(!hideCrowded)}
-            style={{...styles.toggleBtn, marginTop: '10px'}}
-         >
-            {hideCrowded ? <EyeOff size={14} /> : <Eye size={14} />}
-            {hideCrowded ? "Crowded Spots Hidden" : "Hide Crowded Spots"}
-         </button>
+        <div style={styles.controlsRow}>
+          <button style={viewMode === 'default' ? styles.activeBtn : styles.btn} onClick={() => setViewMode('default')}>Explore</button>
+          <button style={viewMode === 'footfall' ? styles.activeBtn : styles.btn} onClick={() => setViewMode('footfall')}>Crowd Density</button>
+          <button style={viewMode === 'carbon' ? styles.activeBtn : styles.btn} onClick={() => setViewMode('carbon')}>Eco Impact</button>
+        </div>
+
+        {/* HIDE TOGGLE */}
+        <button
+          onClick={() => setHideCrowded(!hideCrowded)}
+          style={{ ...styles.toggleBtn, marginTop: '10px' }}
+        >
+          {hideCrowded ? <EyeOff size={14} /> : <Eye size={14} />}
+          {hideCrowded ? "Crowded Spots Hidden" : "Hide Crowded Spots"}
+        </button>
       </div>
 
       <div style={styles.mapContainer}>
         <ComposableMap
           projection="geoMercator"
           // Center [80, 22] and Scale 1000 keeps Lakshadweep (Left) and Arunachal (Right) in frame
-          projectionConfig={{ scale: 1000, center: [80, 22] }} 
+          projectionConfig={{ scale: 1000, center: [80, 22] }}
           style={styles.svgMap}
         >
           <defs>
-             <filter id="ocean-glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur in="SourceAlpha" stdDeviation="15" result="blur" />
-                <feFlood floodColor="#0099ff" result="color" />
-                <feComposite in="color" in2="blur" operator="in" result="coloredBlur" />
-                <feMerge><feMergeNode in="coloredBlur" /><feMergeNode in="SourceGraphic" /></feMerge>
-             </filter>
+            <filter id="ocean-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="15" result="blur" />
+              <feFlood floodColor="#0099ff" result="color" />
+              <feComposite in="color" in2="blur" operator="in" result="coloredBlur" />
+              <feMerge><feMergeNode in="coloredBlur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
           </defs>
 
           <g filter="url(#ocean-glow)">
@@ -673,25 +676,25 @@ const India3D = () => {
 
                   // Tooltip Content
                   let tooltip = stateName;
-                  if(stats && viewMode === "footfall") tooltip += ` | 👥 ~${(stats.footfall/1000).toFixed(1)}k Total`;
-                  if(stats && viewMode === "carbon") tooltip += ` | ☁️ Factor: ${stats.carbon_factor}x`;
+                  if (stats && viewMode === "footfall") tooltip += ` | 👥 ~${(stats.footfall / 1000).toFixed(1)}k Total`;
+                  if (stats && viewMode === "carbon") tooltip += ` | ☁️ Factor: ${stats.carbon_factor}x`;
 
                   return (
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
                       onClick={async () => {
-                          await logActivity(`Viewed: ${stateName}`);
-                          navigate(`/map/${stateName}`);
+                        await logActivity(`Viewed: ${stateName}`);
+                        navigate(`/map/${stateName}`);
                       }}
                       onMouseEnter={() => setHoveredRegion(geo.rsmKey)}
                       onMouseLeave={() => setHoveredRegion(null)}
-                      
+
                       fill={isHovered ? "#FFFFFF" : getRegionStyle(stateName)}
                       stroke="#FFFFFF"
                       strokeWidth={0.5}
                       className="state-path"
-                      
+
                       data-tooltip-id="india-tooltip"
                       data-tooltip-content={tooltip}
                     />
@@ -704,30 +707,30 @@ const India3D = () => {
             {destinations
               .filter(p => !hideCrowded || p.cached_footfall < 40000) // HIDE LOGIC
               .map((place) => (
-               <Marker 
-                  key={place.id} 
+                <Marker
+                  key={place.id}
                   coordinates={[place.longitude, place.latitude]}
                   onClick={() => navigate(`/map/${place.state}`)}
                 >
-                  <circle 
-                    r={viewMode === 'default' ? 2 : 4} 
-                    fill={getMarkerColor(place.cached_footfall)} 
-                    stroke="#fff" 
-                    strokeWidth={0.5} 
+                  <circle
+                    r={viewMode === 'default' ? 2 : 4}
+                    fill={getMarkerColor(place.cached_footfall)}
+                    stroke="#fff"
+                    strokeWidth={0.5}
                     className="destination-marker"
-                    
+
                     data-tooltip-id="india-tooltip"
-                    data-tooltip-content={`${place.name} | 👥 ${(place.cached_footfall/1000).toFixed(1)}k Live`}
+                    data-tooltip-content={`${place.name} | 👥 ${(place.cached_footfall / 1000).toFixed(1)}k Live`}
                   />
                   {/* Pulse Effect for High Crowd */}
                   {place.cached_footfall > 40000 && !hideCrowded && (
-                      <circle r={8} fill="#ef4444" opacity={0.3} className="animate-pulse" />
+                    <circle r={8} fill="#ef4444" opacity={0.3} className="animate-pulse" />
                   )}
-               </Marker>
-            ))}
+                </Marker>
+              ))}
           </g>
         </ComposableMap>
-        
+
         <Tooltip id="india-tooltip" style={{ backgroundColor: "#0f172a", color: "#f8fafc", zIndex: 1000 }} />
       </div>
 
