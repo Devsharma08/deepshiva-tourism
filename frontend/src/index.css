@@ -53,6 +53,24 @@ html{
   animation: spin-slow 8s linear infinite;
 }
 
+/* Hand-drawn arrow dash animation */
+@keyframes dash {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dashoffset: 10;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Handwritten font classes */
+.font-handwritten {
+  font-family: 'Caveat', cursive;
+}
+
 /* listpage css */
 /* App.css - Clean Light Theme */
 /* App.css - Graceful UI Theme */

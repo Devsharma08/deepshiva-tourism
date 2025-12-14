@@ -15,10 +15,10 @@
 //       <Routes>
 //         {/* Default Route */}
 //         <Route path="/" element={<Home />} />
-        
+
 //         {/* Chat Route */}
 //         <Route path="/chat" element={<ChatPage />} />
-        
+
 //         {/* Tourism Routes */}
 //         <Route path="/map" element={<India3D />} />
 //         <Route path="/map/:stateName" element={<StateDetails />} />
@@ -29,20 +29,53 @@
 
 // export default App;
 
-import React, { useState, useEffect } from 'react'; // Import Hooks
+import React, { useState, useEffect, Suspense } from 'react'; // Import Hooks
 import { Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
-import ChatPage from './pages/ChatPage';
-import India3D from './SpecsPages/India3D';       
-import StateDetails from './SpecsPages/StateDetails'; 
 import { getMapFromDB, saveMapToDB } from "./utils/ContextManager";
-import RegionalDashboard from './SpecsComponent/Foot.jsx'
-import BookingPage from './SpecsPages/BookingPage.jsx';
-import TravelApp from './SpecsPages/TravelCard.jsx';
 import './App.css';
-import ListPage from './SpecsPages/ListPage.jsx';
-import App1 from './main1.jsx'
-import TravelDashboard from './SpecsComponent/TravelDashboard.jsx';
+
+// Lazy load heavy components for faster initial load and navigation
+const ChatPage = React.lazy(() => import('./pages/ChatPage'));
+const India3D = React.lazy(() => import('./SpecsPages/India3D'));
+const StateDetails = React.lazy(() => import('./SpecsPages/StateDetails'));
+const RegionalDashboard = React.lazy(() => import('./SpecsComponent/Foot.jsx'));
+const TravelDashboard = React.lazy(() => import('./SpecsComponent/TravelDashboard.jsx'));
+
+// Loading spinner component
+const LoadingSpinner = () => (
+  <div style={{
+    width: '100%',
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+    gap: '20px'
+  }}>
+    <div style={{
+      width: '60px',
+      height: '60px',
+      border: '4px solid rgba(251, 146, 60, 0.2)',
+      borderTop: '4px solid #fb923c',
+      borderRadius: '50%',
+      animation: 'spin 1s linear infinite'
+    }} />
+    <p style={{
+      color: '#94a3b8',
+      fontSize: '1rem',
+      fontWeight: '500',
+      letterSpacing: '0.5px'
+    }}>Loading...</p>
+    <style>{`
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `}</style>
+  </div>
+);
 
 
 const INDIA_MAP_URL = "https://raw.githubusercontent.com/geohacker/india/master/state/india_telengana.geojson";
@@ -71,24 +104,26 @@ function App() {
 
   return (
     <div className='w-full h-full m-0 p-0'>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/foot" element={<RegionalDashboard />} />
-        {/* <Route path="/bot" element={<App1 />} /> */}
-        <Route path="/booking" element={<TravelDashboard />} /> 
-        
-        {/* 3. Pass the pre-loaded data down to India3D */}
-        <Route 
-          path="/map" 
-          element={<India3D preLoadedData={indiaGeoData} />} 
-        />
-        <Route path="/map/:stateName" element={<StateDetails />} />
+      <Suspense fallback={<LoadingSpinner />}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/foot" element={<RegionalDashboard />} />
+          {/* <Route path="/bot" element={<App1 />} /> */}
+          <Route path="/booking" element={<TravelDashboard />} />
+
+          {/* 3. Pass the pre-loaded data down to India3D */}
+          <Route
+            path="/map"
+            element={<India3D preLoadedData={indiaGeoData} />}
+          />
+          <Route path="/map/:stateName" element={<StateDetails />} />
         </Routes>
+      </Suspense>
 
 
-        {/* booking */}
-        {/* <Route path='/booking' element={<ListPage/>}></Route> */}
+      {/* booking */}
+      {/* <Route path='/booking' element={<ListPage/>}></Route> */}
     </div>
   );
 }

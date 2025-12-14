@@ -181,72 +181,7 @@ function CardsSection() {
         </p>
       </div>
 
-      {/* Card grid */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 px-6">
-        {cards.map((card, idx) => {
-          const IconComponent = card.icon;
-          return (
-            <div
-              key={idx}
-              className="group relative rounded-3xl overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:-translate-y-2"
-            >
-              {/* Background image with enhanced overlay */}
-              <div className="relative h-80">
-                <img
-                  src={card.bg}
-                  alt={card.title}
-                  className="w-full h-full object-cover transform group-hover:scale-110 transition duration-700 ease-out"
-                />
-                <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent group-hover:from-black/70 transition-all duration-500`}></div>
-                <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-20 group-hover:opacity-30 transition-all duration-500`}></div>
-              </div>
 
-              {/* Content */}
-              <div className="absolute inset-0 flex flex-col justify-between p-8">
-                {/* Top section with icon and stats */}
-                <div className="flex justify-between items-start">
-                  <div className={`w-14 h-14 bg-gradient-to-br ${card.color} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                    <IconComponent className="w-7 h-7 text-white" />
-                  </div>
-                  <div className="text-right">
-                    <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-white font-medium">
-                      {card.stats}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom content */}
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-white text-2xl font-bold mb-3 group-hover:text-orange-200 transition-colors duration-300">
-                      {card.title}
-                    </h3>
-                    <p className="text-gray-200 text-sm leading-relaxed mb-6">
-                      {card.description}
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => openModal(card)}
-                    className="group/btn bg-white/10 backdrop-blur-sm hover:bg-white hover:text-gray-800 text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 border border-white/20 hover:border-transparent shadow-lg"
-                  >
-                    <span className="flex items-center gap-2">
-                      Explore Feature
-                      <svg className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Decorative elements */}
-              <div className="absolute top-4 right-4 w-20 h-20 bg-white/5 rounded-full blur-xl group-hover:bg-white/10 transition-all duration-500"></div>
-              <div className="absolute bottom-4 left-4 w-16 h-16 bg-orange-500/10 rounded-full blur-lg group-hover:bg-orange-500/20 transition-all duration-500"></div>
-            </div>
-          );
-        })}
-      </div>
 
       {/* Modal for detailed features */}
       {selectedCard && (

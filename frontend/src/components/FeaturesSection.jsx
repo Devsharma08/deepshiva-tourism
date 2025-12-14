@@ -7,7 +7,12 @@ const FeaturesSection = React.forwardRef((props, ref) => {
   const sectionRef = useRef(null);
 
   const handleChatRedirect = () => {
-    navigate('/chat');
+    navigate('/map');
+  };
+
+  // Preload India3D component when user hovers on the chakra
+  const handlePreload = () => {
+    import('../SpecsPages/India3D.jsx');
   };
 
   useEffect(() => {
@@ -49,8 +54,8 @@ const FeaturesSection = React.forwardRef((props, ref) => {
       {/* <div className="absolute h-[80%] inset-0 bg-gradient-to-b from-white via-transparent to-white opacity-60"></div> */}
       {/* <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white to-transparent"></div>
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent"></div> */}
-      
-       <div class="pointer-events-none absolute top-0 left-0 w-full h-20 bg-gradient-to-b from-white to-transparent"></div>
+
+      <div class="pointer-events-none absolute top-0 left-0 w-full h-20 bg-gradient-to-b from-white to-transparent"></div>
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         {/* Content Container */}
@@ -116,9 +121,80 @@ const FeaturesSection = React.forwardRef((props, ref) => {
           </div>
 
           {/* Centered Ashoka Chakra */}
-          <div className="flex justify-center items-center flex-shrink-0">
+          <div className="flex justify-center items-center flex-shrink-0 relative">
+            {/* Hand-drawn arrow and text pointing to chakra */}
+            <div
+              className={`absolute -top-24 left-1/2 transform -translate-x-1/2 flex flex-col items-center z-30 transition-all duration-700 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'
+                }`}
+            >
+              {/* Casual handwritten text */}
+              <span
+                className="text-2xl md:text-3xl text-gray-800 whitespace-nowrap"
+                style={{
+                  fontFamily: "'Caveat', cursive",
+                  fontWeight: 600,
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.1)',
+                  transform: 'rotate(-3deg)'
+                }}
+              >
+                Click here to see the magic! ✨
+              </span>
+
+              {/* Hand-drawn style arrow SVG */}
+              <svg
+                width="60"
+                height="50"
+                viewBox="0 0 60 50"
+                className="mt-1 animate-bounce"
+                style={{
+                  filter: 'drop-shadow(1px 1px 1px rgba(0,0,0,0.2))',
+                  transform: 'rotate(5deg)'
+                }}
+              >
+                {/* Hand-drawn curved arrow path */}
+                <path
+                  d="M30 5 Q25 15, 30 25 Q35 35, 30 45"
+                  stroke="#000000"
+                  strokeWidth="3"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{
+                    strokeDasharray: '2,4',
+                    animation: 'dash 1.5s ease-in-out infinite'
+                  }}
+                />
+                {/* Arrow head - left line */}
+                <path
+                  d="M22 38 L30 48"
+                  stroke="#000000"
+                  strokeWidth="3"
+                  fill="none"
+                  strokeLinecap="round"
+                />
+                {/* Arrow head - right line */}
+                <path
+                  d="M38 38 L30 48"
+                  stroke="#000000"
+                  strokeWidth="3"
+                  fill="none"
+                  strokeLinecap="round"
+                />
+                {/* Extra decorative swoosh */}
+                <path
+                  d="M20 8 Q30 2, 40 8"
+                  stroke="#000000"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeLinecap="round"
+                  opacity="0.6"
+                />
+              </svg>
+            </div>
+
             <div
               onClick={handleChatRedirect}
+              onMouseEnter={handlePreload}
               className={`cursor-pointer group transition-all duration-700 hover:scale-110 relative z-10 ${isVisible ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
                 }`}
               style={{
@@ -182,7 +258,7 @@ const FeaturesSection = React.forwardRef((props, ref) => {
               </span>
             </h2>
           </div>
-          
+
         </div>
       </div>
     </section>

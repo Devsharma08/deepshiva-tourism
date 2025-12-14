@@ -58,19 +58,19 @@ function Home() {
 
       // Check if cursor is in target sections
       let inTargetSection = false;
-      
+
       if (journeySection.current) {
         const rect = journeySection.current.getBoundingClientRect();
-        if (e.clientX >= rect.left && e.clientX <= rect.right && 
-            e.clientY >= rect.top && e.clientY <= rect.bottom) {
+        if (e.clientX >= rect.left && e.clientX <= rect.right &&
+          e.clientY >= rect.top && e.clientY <= rect.bottom) {
           inTargetSection = true;
         }
       }
-      
+
       if (!inTargetSection && featuresSection.current) {
         const rect = featuresSection.current.getBoundingClientRect();
-        if (e.clientX >= rect.left && e.clientX <= rect.right && 
-            e.clientY >= rect.top && e.clientY <= rect.bottom) {
+        if (e.clientX >= rect.left && e.clientX <= rect.right &&
+          e.clientY >= rect.top && e.clientY <= rect.bottom) {
           inTargetSection = true;
         }
       }
@@ -338,7 +338,7 @@ function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
-            <button 
+            <button
               onClick={() => navigate('/chat')}
               className="group bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl"
             >
@@ -350,7 +350,7 @@ function Home() {
               </span>
             </button>
 
-            <button 
+            <button
               onClick={() => navigate('/chat')}
               className="group bg-white hover:bg-gray-50 text-gray-700 px-8 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 border-2 border-gray-200 hover:border-orange-300 shadow-lg hover:shadow-xl"
             >
