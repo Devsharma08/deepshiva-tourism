@@ -33,6 +33,8 @@ import React, { useState, useEffect, Suspense } from 'react'; // Import Hooks
 import { Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import { getMapFromDB, saveMapToDB } from "./utils/ContextManager";
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
 // Lazy load heavy components for faster initial load and navigation
@@ -41,6 +43,8 @@ const India3D = React.lazy(() => import('./SpecsPages/India3D'));
 const StateDetails = React.lazy(() => import('./SpecsPages/StateDetails'));
 const RegionalDashboard = React.lazy(() => import('./SpecsComponent/Foot.jsx'));
 const TravelDashboard = React.lazy(() => import('./SpecsComponent/TravelDashboard.jsx'));
+const AuthPage = React.lazy(() => import('./pages/AuthPage'));
+const OnboardingPage = React.lazy(() => import('./pages/OnboardingPage'));
 
 // Loading spinner component
 const LoadingSpinner = () => (
@@ -103,28 +107,25 @@ function App() {
   }, []);
 
   return (
-    <div className='w-full h-full m-0 p-0'>
-      <Suspense fallback={<LoadingSpinner />}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/foot" element={<RegionalDashboard />} />
-          {/* <Route path="/bot" element={<App1 />} /> */}
-          <Route path="/booking" element={<TravelDashboard />} />
+    <AuthProvider>
+      <div className='w-full h-full m-0 p-0'>
+        <Suspense fallback={<LoadingSpinner />}>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/auth" element={<AuthPage />} />
 
-          {/* 3. Pass the pre-loaded data down to India3D */}
-          <Route
-            path="/map"
-            element={<India3D preLoadedData={indiaGeoData} />}
-          />
-          <Route path="/map/:stateName" element={<StateDetails />} />
-        </Routes>
-      </Suspense>
-
-
-      {/* booking */}
-      {/* <Route path='/booking' element={<ListPage/>}></Route> */}
-    </div>
+            {/* Protected Routes */}
+            <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+            <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+            <Route path="/foot" element={<ProtectedRoute><RegionalDashboard /></ProtectedRoute>} />
+            <Route path="/booking" element={<ProtectedRoute><TravelDashboard /></ProtectedRoute>} />
+            <Route path="/map" element={<ProtectedRoute><India3D preLoadedData={indiaGeoData} /></ProtectedRoute>} />
+            <Route path="/map/:stateName" element={<ProtectedRoute><StateDetails /></ProtectedRoute>} />
+          </Routes>
+        </Suspense>
+      </div>
+    </AuthProvider>
   );
 }
 
