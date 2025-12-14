@@ -24,6 +24,7 @@
     "node-cron": "^4.2.1",
     "node-fetch": "^3.3.2",
     "nodemon": "^3.1.10",
+    "pg": "^8.16.3",
     "unsplash-js": "^7.0.20"
   }
 }
