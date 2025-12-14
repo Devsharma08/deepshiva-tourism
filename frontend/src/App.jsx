@@ -46,6 +46,7 @@ const TravelDashboard = React.lazy(() => import('./SpecsComponent/TravelDashboar
 const AuthPage = React.lazy(() => import('./pages/AuthPage'));
 const OnboardingPage = React.lazy(() => import('./pages/OnboardingPage'));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
+const ItineraryPlanner = React.lazy(() => import('./pages/ItineraryPlanner'));
 
 // Activity tracking component
 import { useActivityTracker } from './hooks/useActivityTracker';
@@ -127,6 +128,7 @@ function App() {
             <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
             <Route path="/foot" element={<ProtectedRoute><RegionalDashboard /></ProtectedRoute>} />
             <Route path="/booking" element={<ProtectedRoute><TravelDashboard /></ProtectedRoute>} />
+            <Route path="/itinerary" element={<ProtectedRoute><ItineraryPlanner /></ProtectedRoute>} />
             <Route path="/map" element={<ProtectedRoute><India3D preLoadedData={indiaGeoData} /></ProtectedRoute>} />
             <Route path="/map/:stateName" element={<ProtectedRoute><StateDetails /></ProtectedRoute>} />
           </Routes>

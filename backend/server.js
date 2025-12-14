@@ -82,7 +82,7 @@
 //     if (!cityCode) return res.status(400).json({ error: 'City required' });
 //     cityCode = cityCode.toUpperCase().trim();
 //     if (CITY_TO_CODE[cityCode]) cityCode = CITY_TO_CODE[cityCode];
-    
+
 //     if (cityCode.length !== 3) {
 //          return res.status(400).json({ error: 'Please enter a valid City Code (e.g. DEL)' });
 //     }
@@ -122,7 +122,7 @@
 //             hotelIds: hotelIds.join(','),
 //             adults: '1'
 //         });
-        
+
 //         if (offersResponse.data) {
 //             offersResponse.data.forEach(offer => {
 //                 offerMap.set(offer.hotel.hotelId, offer);
@@ -168,7 +168,7 @@
 //   try {
 //     const { origin, destination, date } = req.query;
 //     console.log(`✈️ Searching flights: ${origin} -> ${destination} on ${date}`);
-    
+
 //     const response = await amadeus.shopping.flightOffersSearch.get({
 //         originLocationCode: origin,
 //         destinationLocationCode: destination,
@@ -178,7 +178,7 @@
 //     });
 
 //     // console.log(response);
-    
+
 
 //     if (!response.data) return res.json({ flights: [] });
 
@@ -188,7 +188,7 @@
 //     const flights = response.data.map(flight => {
 //         const itinerary = flight.itineraries[0];
 //         const segments = itinerary.segments;
-        
+
 //         // Process every segment
 //         const processedSegments = segments.map(seg => {
 //             return {
@@ -232,13 +232,13 @@
 
 //         const coordinates = `${userLocation.lng},${userLocation.lat};${destLocation.lng},${destLocation.lat}`;
 //         const osrmUrl = `http://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`;
-        
+
 //         const response = await axios.get(osrmUrl);
-        
+
 //         if (response.data.code !== 'Ok') throw new Error('Route not found');
 
 //         const route = response.data.routes[0];
-        
+
 //         res.json({
 //             duration: Math.round(route.duration / 60), 
 //             distance: (route.distance / 1000).toFixed(1), 
@@ -287,7 +287,7 @@
 //   if (imageCache.has(query)) return imageCache.get(query);
 //   // Default fallback if Unsplash key is missing or fails
 //   const fallback = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800';
-  
+
 //   if (!UNSPLASH_KEY) return fallback;
 
 //   try {
@@ -351,7 +351,7 @@
 // app.get('/api/flights/search', async (req, res) => {
 //     try {
 //         const { origin, destination, date } = req.query;
-        
+
 //         // Validation: Amadeus crashes if codes aren't 3 letters
 //         if (!origin || !destination || origin.length !== 3 || destination.length !== 3) {
 //             console.error(`❌ Invalid Codes: Origin=${origin}, Dest=${destination}`);
@@ -474,7 +474,7 @@
 
 //         const coordsString = `${userLocation.lng},${userLocation.lat};${destLocation.lng},${destLocation.lat}`;
 //         console.log("🚗 Fetching route...");
-        
+
 //         const response = await axios.get(`https://us1.locationiq.com/v1/directions/driving/${coordsString}`, {
 //             params: {
 //                 key: LOCATIONIQ_KEY,
@@ -576,13 +576,13 @@
 //         const dictionaries = response.result.dictionaries || {};
 //         const flights = response.data.map(flight => {
 //             const segment = flight.itineraries[0].segments[0];
-            
+
 //             // CURRENCY CONVERSION LOGIC
 //             let price = parseFloat(flight.price.total);
 //             const currency = flight.price.currency;
 //             if (currency === 'EUR') price *= 90; // Approx EUR to INR
 //             else if (currency === 'USD') price *= 84; // Approx USD to INR
-            
+
 //             return {
 //                 id: flight.id,
 //                 totalPrice: Math.round(price), // Rounded INR
@@ -612,13 +612,13 @@
 
 //         const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`, { headers: { 'User-Agent': 'TravelApp/1.0' } });
 //         if (!geoRes.data.length) return res.json({ hotels: [] });
-        
+
 //         const { osm_id, lat, lon } = geoRes.data[0];
 //         const areaId = osm_id + 3600000000;
 
 //         const overpassQuery = `[out:json][timeout:25];area(${areaId})->.searchArea;node["tourism"="hotel"](area.searchArea);out body 20;`;
 //         const hotelRes = await axios.get(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`);
-        
+
 //         const hotels = (hotelRes.data.elements || []).filter(h => h.tags.name).map(h => ({
 //             id: h.id,
 //             name: h.tags.name,
@@ -642,7 +642,7 @@
 //         const url = `http://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
 //         const response = await axios.get(url);
 //         if (response.data.code !== 'Ok') throw new Error('No route');
-        
+
 //         const route = response.data.routes[0];
 //         res.json({
 //             duration: Math.round(route.duration / 60),
@@ -688,7 +688,7 @@ app.use(cors());
 app.use(express.json());
 
 // --- CONFIGURATION ---
-const SUPABASE_URL = process.env.SUPABASE_URL; 
+const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -714,7 +714,7 @@ const getAmenities = () => ['Free Wifi', 'Swimming Pool', 'Spa', 'Parking', 'Res
 const getFakePrice = (str) => {
     let hash = 0;
     for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    return (Math.abs(hash) % 8000) + 2000; 
+    return (Math.abs(hash) % 8000) + 2000;
 };
 
 // --- API 1: FLIGHT SEARCH (Strict Deduplication) ---
@@ -739,7 +739,7 @@ app.get('/api/flights/search', async (req, res) => {
         response.data.forEach(offer => {
             const segment = offer.itineraries[0].segments[0];
             const flightNum = segment.carrierCode + segment.number;
-            
+
             // Convert Price
             let price = parseFloat(offer.price.total);
             if (offer.price.currency === 'EUR') price *= 90;
@@ -782,14 +782,14 @@ app.get('/api/hotels/search', async (req, res) => {
 
         const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`, { headers: { 'User-Agent': 'TravelApp/1.0' } });
         if (!geoRes.data.length) return res.json({ hotels: [] });
-        
+
         const { lat, lon } = geoRes.data[0];
         const radius = 25000; // 25km Radius
-        
+
         // Optimized Overpass Query
         const overpassQuery = `[out:json][timeout:25];(node["tourism"="hotel"](around:${radius},${lat},${lon}););out body 50;`;
         const hotelRes = await axios.get(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`);
-        
+
         const allHotels = (hotelRes.data.elements || [])
             .filter(h => h.tags && h.tags.name)
             .map(h => ({
@@ -820,15 +820,15 @@ app.post('/api/route', async (req, res) => {
 
         const coords = `${userLocation.lng},${userLocation.lat};${destLocation.lng},${destLocation.lat}`;
         const url = `http://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
-        
+
         const response = await axios.get(url, { timeout: 3000 });
         if (response.data.code !== 'Ok') throw new Error('No route');
-        
+
         const route = response.data.routes[0];
         res.json({
             duration: Math.round(route.duration / 60),
             distance: (route.distance / 1000).toFixed(1),
-            geometry: route.geometry 
+            geometry: route.geometry
         });
     } catch (error) {
         res.json(null);
@@ -836,12 +836,78 @@ app.post('/api/route', async (req, res) => {
 });
 
 // --- API 4 & 5 (Autocomplete) ---
+
+// Static Indian Airport Database (Fallback when Amadeus unavailable)
+const INDIAN_AIRPORTS = [
+    { name: "Indira Gandhi International Airport", iata: "DEL", city: "New Delhi" },
+    { name: "Chhatrapati Shivaji Maharaj International Airport", iata: "BOM", city: "Mumbai" },
+    { name: "Kempegowda International Airport", iata: "BLR", city: "Bengaluru" },
+    { name: "Rajiv Gandhi International Airport", iata: "HYD", city: "Hyderabad" },
+    { name: "Chennai International Airport", iata: "MAA", city: "Chennai" },
+    { name: "Netaji Subhas Chandra Bose International Airport", iata: "CCU", city: "Kolkata" },
+    { name: "Cochin International Airport", iata: "COK", city: "Kochi" },
+    { name: "Sardar Vallabhbhai Patel International Airport", iata: "AMD", city: "Ahmedabad" },
+    { name: "Goa International Airport", iata: "GOI", city: "Goa" },
+    { name: "Pune Airport", iata: "PNQ", city: "Pune" },
+    { name: "Jaipur International Airport", iata: "JAI", city: "Jaipur" },
+    { name: "Lucknow Airport", iata: "LKO", city: "Lucknow" },
+    { name: "Trivandrum International Airport", iata: "TRV", city: "Thiruvananthapuram" },
+    { name: "Biju Patnaik International Airport", iata: "BBI", city: "Bhubaneswar" },
+    { name: "Lal Bahadur Shastri International Airport", iata: "VNS", city: "Varanasi" },
+    { name: "Sri Guru Ram Dass Jee International Airport", iata: "ATQ", city: "Amritsar" },
+    { name: "Dabolim Airport", iata: "GOI", city: "Goa" },
+    { name: "Mangalore International Airport", iata: "IXE", city: "Mangalore" },
+    { name: "Coimbatore International Airport", iata: "CJB", city: "Coimbatore" },
+    { name: "Visakhapatnam Airport", iata: "VTZ", city: "Visakhapatnam" },
+    { name: "Bagdogra Airport", iata: "IXB", city: "Siliguri" },
+    { name: "Srinagar Airport", iata: "SXR", city: "Srinagar" },
+    { name: "Udaipur Airport", iata: "UDR", city: "Udaipur" },
+    { name: "Patna Airport", iata: "PAT", city: "Patna" },
+    { name: "Chandigarh Airport", iata: "IXC", city: "Chandigarh" },
+    { name: "Ranchi Airport", iata: "IXR", city: "Ranchi" },
+    { name: "Guwahati Airport", iata: "GAU", city: "Guwahati" },
+    { name: "Nagpur Airport", iata: "NAG", city: "Nagpur" },
+    { name: "Indore Airport", iata: "IDR", city: "Indore" },
+    { name: "Raipur Airport", iata: "RPR", city: "Raipur" }
+];
+
 app.get('/api/airports', async (req, res) => {
     try {
         const { keyword } = req.query;
-        const response = await amadeus.referenceData.locations.get({ keyword, subType: 'AIRPORT', 'page[limit]': 5 });
-        res.json({ airports: response.data.map(i => ({ name: i.name, iata: i.iataCode, city: i.address.cityName })) });
-    } catch (e) { res.json({ airports: [] }); }
+        if (!keyword || keyword.length < 2) return res.json({ airports: [] });
+
+        // Try Amadeus API first if configured
+        if (AMADEUS_ID && AMADEUS_SECRET) {
+            try {
+                const response = await amadeus.referenceData.locations.get({
+                    keyword,
+                    subType: 'AIRPORT',
+                    'page[limit]': 7
+                });
+                const airports = response.data.map(i => ({
+                    name: i.name,
+                    iata: i.iataCode,
+                    city: i.address.cityName
+                }));
+                if (airports.length > 0) return res.json({ airports });
+            } catch (amadeusError) {
+                console.log("⚠️ Amadeus API failed, using local fallback:", amadeusError.message);
+            }
+        }
+
+        // Fallback: Search in static Indian airports list
+        const searchTerm = keyword.toLowerCase();
+        const matchedAirports = INDIAN_AIRPORTS.filter(airport =>
+            airport.city.toLowerCase().includes(searchTerm) ||
+            airport.name.toLowerCase().includes(searchTerm) ||
+            airport.iata.toLowerCase().includes(searchTerm)
+        ).slice(0, 7);
+
+        res.json({ airports: matchedAirports });
+    } catch (e) {
+        console.error("Airport API Error:", e.message);
+        res.json({ airports: [] });
+    }
 });
 
 app.get('/api/suggestions', async (req, res) => {
@@ -898,7 +964,7 @@ const getWeatherMultiplier = async (lat, lng) => {
     try {
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${WEATHER_API_KEY}`;
         const res = await axios.get(url);
-        
+
         const weatherId = res.data.weather[0].id; // 200-500: Rain, 800: Clear
         const tempK = res.data.main.temp;
         const tempC = tempK - 273.15;
@@ -908,10 +974,10 @@ const getWeatherMultiplier = async (lat, lng) => {
         // Rain/Snow Logic
         if (weatherId >= 200 && weatherId < 600) mult = 0.3; // Rain -> 30% crowd
         else if (weatherId >= 600 && weatherId < 700) mult = 0.5; // Snow -> 50% crowd
-        
+
         // Heat Logic (India Context)
         if (tempC > 42) mult *= 0.4; // Extreme Heat -> 40% crowd
-        
+
         // Good Weather Bonus
         if (weatherId === 800 && tempC > 20 && tempC < 30) mult *= 1.1;
 
@@ -925,9 +991,9 @@ const getWeatherMultiplier = async (lat, lng) => {
 // SENSOR FUSION ENGINE (Combines all data)
 const calculateLiveFootfall = async (baseCapacity, lat, lng, type) => {
     const now = new Date();
-    
+
     // Convert Server Time to India Time (IST) for accuracy
-    const istTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+    const istTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
     const hour = istTime.getHours();
     const day = istTime.getDay(); // 0 = Sunday
 
@@ -954,11 +1020,11 @@ const calculateLiveFootfall = async (baseCapacity, lat, lng, type) => {
 
 // HELPER: Distance Calc
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; 
+    const R = 6371;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*(Math.PI/180))*Math.cos(lat2*(Math.PI/180))*Math.sin(dLon/2)*Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return Math.round(R * c);
 };
 
@@ -980,7 +1046,7 @@ app.get('/api/state-stats', async (req, res) => {
     data.forEach(item => {
         const stateName = item.state ? item.state.trim() : "Unknown";
         if (!stateMap[stateName]) stateMap[stateName] = { footfall: 0, maxCarbon: 0 };
-        
+
         // Sum footfall for the whole state
         stateMap[stateName].footfall += item.cached_footfall;
         // Use the MAX carbon factor (worst case) to color the state
@@ -989,9 +1055,9 @@ app.get('/api/state-stats', async (req, res) => {
 
     const finalStats = {};
     for (const [state, stats] of Object.entries(stateMap)) {
-        finalStats[state] = { 
-            footfall: stats.footfall, 
-            carbon_factor: parseFloat(stats.maxCarbon.toFixed(1)) 
+        finalStats[state] = {
+            footfall: stats.footfall,
+            carbon_factor: parseFloat(stats.maxCarbon.toFixed(1))
         };
     }
     res.json(finalStats);
@@ -1021,23 +1087,23 @@ app.post('/api/calculate-impact', async (req, res) => {
 // Runs every hour (e.g., at minute 0)
 cron.schedule('0 * * * *', async () => {
     console.log(`\n[${new Date().toLocaleTimeString()}] 📡 Syncing Virtual Sensors...`);
-    
+
     // 1. Fetch all locations including their BASE Capacity
     const { data: locations } = await supabase.from('destinations').select('*');
-    
+
     if (locations) {
         for (const loc of locations) {
             // Estimate Type from Description or default to Monument
-            const type = loc.description || 'Monument'; 
-            
+            const type = loc.description || 'Monument';
+
             // Use the stored BASE value (Max Capacity). Default to 5000 if missing.
-            const baseCapacity = loc.base_footfall || 5000; 
+            const baseCapacity = loc.base_footfall || 5000;
 
             // 2. Calculate New Value using Sensor Fusion
             const newFootfall = await calculateLiveFootfall(
-                baseCapacity, 
-                loc.latitude, 
-                loc.longitude, 
+                baseCapacity,
+                loc.latitude,
+                loc.longitude,
                 type
             );
 
