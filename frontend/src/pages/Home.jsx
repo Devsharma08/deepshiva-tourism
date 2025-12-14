@@ -9,7 +9,7 @@ import CommunityEvents from "./CommunityEvents";
 import Collage from "./Collage";
 import Footer from "./Footer";
 import ChatbotButton from "../components/ChatbotButton";
-import FeaturesSection from "../components/FeaturesSection";
+
 import MonthlyVideoHero from "../components/MonthlyVideoHero";
 
 function Home() {
@@ -33,7 +33,7 @@ function Home() {
   const lastScrollY = React.useRef(0);
   const lastScrollTime = React.useRef(Date.now());
   const journeySection = React.useRef(null);
-  const featuresSection = React.useRef(null);
+
 
   useEffect(() => {
     let lastTime = 0;
@@ -67,13 +67,7 @@ function Home() {
         }
       }
 
-      if (!inTargetSection && featuresSection.current) {
-        const rect = featuresSection.current.getBoundingClientRect();
-        if (e.clientX >= rect.left && e.clientX <= rect.right &&
-          e.clientY >= rect.top && e.clientY <= rect.bottom) {
-          inTargetSection = true;
-        }
-      }
+
 
       setIsInTargetSection(inTargetSection);
 
@@ -339,7 +333,7 @@ function Home() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
             <button
-              onClick={() => navigate('/chat')}
+              onClick={() => navigate('/itinerary')}
               className="group bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl"
             >
               <span className="flex items-center gap-3">
@@ -396,9 +390,6 @@ function Home() {
           <CardsSection />
         </div>
       </section>
-
-      {/* Features section */}
-      <FeaturesSection ref={featuresSection} />
 
 
       {/* travel destination */}

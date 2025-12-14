@@ -247,15 +247,33 @@ function TravelDestination() {
         onKeyDown={handleKeyNavigation}
         tabIndex={0}
       >
-        {/* Enhanced Background with Parallax Effect */}
+        {/* Light Background Theme */}
         <div className="absolute inset-0 overflow-hidden">
-          <img
-            className="absolute inset-0 w-full h-full object-cover transform scale-110"
-            src="https://images.unsplash.com/photo-1629723253496-693865ce812d?w=1200&auto=format&fit=crop&q=80"
-            alt="monument"
-          />
-          {/* Animated gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-transparent animate-pulse" />
+          {/* Base gradient - light white/cream theme */}
+          <div className="absolute inset-0 bg-gradient-to-b from-white via-orange-50/30 to-amber-50/40" />
+
+          {/* Secondary gradient overlay for depth */}
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-100/20 via-white to-amber-100/30" />
+
+          {/* Soft glow at top for seamless blend */}
+          <div className="absolute top-0 left-0 right-0 h-60 bg-gradient-to-b from-white via-white to-transparent" />
+
+          {/* Animated ambient orbs with light orange/amber theme */}
+          <div className="absolute top-0 left-0 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+          <div className="absolute top-0 right-0 w-80 h-80 bg-amber-200/25 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }} />
+          <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-orange-100/30 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '2s' }} />
+          <div className="absolute bottom-1/3 right-1/4 w-64 h-64 bg-amber-100/40 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '1.5s' }} />
+          <div className="absolute bottom-0 left-1/3 w-72 h-72 bg-orange-100/25 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4.5s', animationDelay: '0.5s' }} />
+
+          {/* Subtle mesh gradient overlay */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-100/20 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-amber-100/25 via-transparent to-transparent" />
+
+          {/* Fine grain texture overlay for premium feel */}
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }} />
+
+          {/* Top fade overlay for seamless blend with section above */}
+          <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-white via-white to-transparent pointer-events-none" />
         </div>
 
         {/* Floating particles */}
@@ -274,32 +292,40 @@ function TravelDestination() {
           {/* Enhanced Top Heading + Button */}
           <div className="flex items-start justify-between">
             <div className="ml-10">
-              <div className="inline-flex items-center gap-2 bg-amber-100/20 backdrop-blur-sm text-amber-200 px-4 py-2 rounded-full text-sm font-medium mb-6 border border-amber-300/30">
-                <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span>
+              <div className="inline-flex items-center gap-2 bg-orange-100 backdrop-blur-sm text-orange-700 px-4 py-2 rounded-full text-sm font-medium mb-6 border border-orange-200">
+                <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
                 Premium Destinations
               </div>
-              <h1 className="font-sans uppercase text-4xl md:text-7xl font-black tracking-wider text-white drop-shadow-2xl leading-tight">
+              <h1 className="font-sans uppercase text-4xl md:text-7xl font-black tracking-wider text-gray-800 drop-shadow-sm leading-tight">
                 <span className="block">Travel Like</span>
-                <span className="block text-transparent bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 bg-clip-text">
+                <span className="block text-transparent bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 bg-clip-text">
                   a pro
                 </span>
               </h1>
-              <p className="text-white/80 text-lg mt-4 max-w-md font-light">
+              <p className="text-gray-600 text-lg mt-4 max-w-md font-light">
                 Discover India's most captivating destinations with expert-curated experiences
               </p>
             </div>
 
             <button
               type="button"
-              onClick={() => navigate('/chat')}
-              className="group mt-6 bg-white/10 backdrop-blur-md mr-20 text-white px-8 py-4 rounded-2xl font-semibold shadow-2xl hover:bg-white hover:text-gray-800 transition-all duration-500 transform hover:scale-105 border border-white/20 hover:border-transparent"
+              onClick={() => navigate('/map')}
+              className="group relative mt-6 mr-20 rounded-full"
             >
-              <span className="flex items-center gap-3">
-                Start Exploring
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </span>
+              {/* Glow effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full blur-md opacity-0 group-hover:opacity-60 transition-opacity duration-500 scale-110"></div>
+
+              {/* Button content */}
+              <div className="relative px-8 py-3 bg-white rounded-full border border-orange-200 group-hover:border-orange-400 shadow-lg group-hover:shadow-xl transition-all duration-300 flex items-center gap-3">
+                <span className="text-transparent bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text font-semibold tracking-wide">
+                  Dive In
+                </span>
+                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                  <svg className="w-3 h-3 text-white group-hover:translate-x-0.5 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </div>
             </button>
           </div>
 
@@ -311,7 +337,7 @@ function TravelDestination() {
             {/* Navigation Buttons - Always visible for loop navigation */}
             <button
               onClick={scrollLeft}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/10 backdrop-blur-md text-white p-4 rounded-full shadow-2xl hover:bg-white hover:text-gray-800 transition-all duration-300 transform hover:scale-110 border border-white/20"
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white backdrop-blur-md text-gray-700 p-4 rounded-full shadow-xl hover:bg-orange-500 hover:text-white transition-all duration-300 transform hover:scale-110 border border-gray-200"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -320,7 +346,7 @@ function TravelDestination() {
 
             <button
               onClick={scrollRight}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/10 backdrop-blur-md text-white p-4 rounded-full shadow-2xl hover:bg-white hover:text-gray-800 transition-all duration-300 transform hover:scale-110 border border-white/20"
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white backdrop-blur-md text-gray-700 p-4 rounded-full shadow-xl hover:bg-orange-500 hover:text-white transition-all duration-300 transform hover:scale-110 border border-gray-200"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -406,8 +432,8 @@ function TravelDestination() {
                   key={i}
                   onClick={() => setCurrentIndex(i)}
                   className={`transition-all duration-500 transform hover:scale-125 ${currentIndex === i
-                    ? 'w-8 h-3 bg-gradient-to-r from-amber-400 to-orange-400 rounded-full shadow-lg shadow-amber-400/50 animate-pulse'
-                    : 'w-3 h-3 bg-white/30 hover:bg-white/60 rounded-full'
+                    ? 'w-8 h-3 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full shadow-lg shadow-orange-400/50 animate-pulse'
+                    : 'w-3 h-3 bg-gray-300 hover:bg-gray-400 rounded-full'
                     }`}
                 />
               ))}
@@ -415,8 +441,8 @@ function TravelDestination() {
 
             {/* Auto-scroll indicator */}
             <div className="flex justify-center mt-4">
-              <div className="flex items-center gap-2 text-white/60 text-xs">
-                <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${isAutoScrolling ? 'bg-amber-400 animate-pulse' : 'bg-white/30'}`}></div>
+              <div className="flex items-center gap-2 text-gray-500 text-xs">
+                <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${isAutoScrolling ? 'bg-orange-500 animate-pulse' : 'bg-gray-300'}`}></div>
                 <span>{isAutoScrolling ? 'Auto-scrolling' : 'Paused'}</span>
               </div>
             </div>

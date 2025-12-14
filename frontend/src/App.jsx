@@ -45,6 +45,7 @@ const RegionalDashboard = React.lazy(() => import('./SpecsComponent/Foot.jsx'));
 const TravelDashboard = React.lazy(() => import('./SpecsComponent/TravelDashboard.jsx'));
 const AuthPage = React.lazy(() => import('./pages/AuthPage'));
 const OnboardingPage = React.lazy(() => import('./pages/OnboardingPage'));
+const ItineraryPlanner = React.lazy(() => import('./pages/ItineraryPlanner.jsx'));
 
 // Loading spinner component
 const LoadingSpinner = () => (
@@ -120,6 +121,7 @@ function App() {
             <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
             <Route path="/foot" element={<ProtectedRoute><RegionalDashboard /></ProtectedRoute>} />
             <Route path="/booking" element={<ProtectedRoute><TravelDashboard /></ProtectedRoute>} />
+            <Route path="/itinerary" element={<ProtectedRoute><ItineraryPlanner /></ProtectedRoute>} />
             <Route path="/map" element={<ProtectedRoute><India3D preLoadedData={indiaGeoData} /></ProtectedRoute>} />
             <Route path="/map/:stateName" element={<ProtectedRoute><StateDetails /></ProtectedRoute>} />
           </Routes>
