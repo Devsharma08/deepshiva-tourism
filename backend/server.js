@@ -919,7 +919,7 @@ app.get('/api/hotels/search', async (req, res) => {
                         price: getFakePrice(h.tags.name),
                         rating: (Math.random() * 1.5 + 3.5).toFixed(1),
                         amenities: getAmenities(),
-                        image: `https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80`
+                        image: null // Will be fetched dynamically from Wikimedia Commons
                     }));
 
                 if (allHotels.length > 0) {
@@ -1239,6 +1239,100 @@ cron.schedule('0 * * * *', async () => {
         }
     }
     console.log("✅ All Regions Updated.");
+});
+
+// --- API: WIKIMEDIA COMMONS IMAGES ---
+// Dynamic image fetching from Wikimedia Commons (replaces Unsplash)
+const wikimediaService = require('./wikimediaService');
+
+app.get('/api/images/search', async (req, res) => {
+    try {
+        const { keyword, context = 'default', count = 1 } = req.query;
+
+        if (!keyword) {
+            return res.status(400).json({ error: 'Keyword is required' });
+        }
+
+        console.log(`🖼️ Fetching Wikimedia images for: "${keyword}" (context: ${context})`);
+
+        if (parseInt(count) === 1) {
+            const imageUrl = await wikimediaService.getImageUrl(keyword, context);
+            return res.json({
+                success: true,
+                image: imageUrl,
+                source: 'Wikimedia Commons'
+            });
+        } else {
+            const images = await wikimediaService.getMultipleImages(keyword, context, parseInt(count));
+            return res.json({
+                success: true,
+                images,
+                count: images.length,
+                source: 'Wikimedia Commons'
+            });
+        }
+    } catch (error) {
+        console.error('❌ Wikimedia API Error:', error.message);
+        res.json({ success: false, error: error.message, images: [] });
+    }
+});
+
+app.get('/api/images/location', async (req, res) => {
+    try {
+        const { name, fallbackContext = 'default' } = req.query;
+
+        if (!name) {
+            return res.status(400).json({ error: 'Location name is required' });
+        }
+
+        console.log(`🖼️ Fetching India location image for: "${name}"`);
+
+        const imageUrl = await wikimediaService.getIndiaLocationImage(name, fallbackContext);
+
+        res.json({
+            success: true,
+            location: name,
+            image: imageUrl,
+            source: 'Wikimedia Commons'
+        });
+    } catch (error) {
+        console.error('❌ Location Image API Error:', error.message);
+        res.json({ success: false, error: error.message, image: null });
+    }
+});
+
+app.post('/api/images/batch', async (req, res) => {
+    try {
+        const { locations, context = 'default' } = req.body;
+
+        if (!locations || !Array.isArray(locations)) {
+            return res.status(400).json({ error: 'Locations array is required' });
+        }
+
+        console.log(`🖼️ Batch fetching images for ${locations.length} locations`);
+
+        const results = await wikimediaService.batchFetchImages(locations, context);
+
+        res.json({
+            success: true,
+            images: results,
+            count: Object.keys(results).length,
+            source: 'Wikimedia Commons'
+        });
+    } catch (error) {
+        console.error('❌ Batch Image API Error:', error.message);
+        res.json({ success: false, error: error.message, images: {} });
+    }
+});
+
+app.get('/api/images/cache-stats', (req, res) => {
+    const stats = wikimediaService.getCacheStats();
+    res.json({ success: true, ...stats });
+});
+
+app.post('/api/images/clear-cache', (req, res) => {
+    wikimediaService.clearImageCache();
+    res.json({ success: true, message: 'Image cache cleared' });
 });
 
 app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));

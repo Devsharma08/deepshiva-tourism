@@ -1,11 +1,51 @@
 import React, { useState, useEffect } from "react";
 import { ArrowRight, ArrowLeft, MapPin, Compass } from "lucide-react";
+import { getImageUrl, getPlaceholderImage } from '../utils/wikimediaService';
 
 const DeastinationRail = ({ destinations }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [destinationImages, setDestinationImages] = useState({});
 
   if (!destinations || destinations.length === 0) return null;
+
+  // Fetch images from Wikimedia Commons
+  useEffect(() => {
+    const fetchImages = async () => {
+      const imageMap = {};
+
+      for (const dest of destinations) {
+        try {
+          // Determine context based on destination type
+          const contextMap = {
+            'City': 'city', 'Desert': 'state', 'Lakes': 'city', 'Wonder': 'monument',
+            'Spiritual': 'temple', 'Pilgrimage': 'temple', 'Lake': 'city', 'Skiing': 'mountain',
+            'Hill Station': 'mountain', 'Nature': 'mountain', 'Backwaters': 'city',
+            'Hills': 'mountain', 'Heritage': 'monument', 'Beach': 'beach', 'Wildlife': 'wildlife',
+            'Temple': 'temple', 'Island': 'beach', 'Monument': 'monument', 'Yoga': 'city',
+            'Tea': 'mountain', 'Church': 'temple', 'Ruins': 'monument', 'Fort': 'monument'
+          };
+          const context = contextMap[dest.type] || 'city';
+          const img = await getImageUrl(dest.name, context);
+          if (img) {
+            imageMap[dest.name] = img;
+          }
+        } catch (error) {
+          console.log(`Failed to fetch image for ${dest.name}`);
+        }
+      }
+
+      setDestinationImages(imageMap);
+    };
+
+    fetchImages();
+  }, [destinations]);
+
+  // Get image for a destination with Wikimedia preference
+  const getDestinationImage = (dest) => {
+    if (destinationImages[dest.name]) return destinationImages[dest.name];
+    return getPlaceholderImage(dest.name);
+  };
 
   // Logic to calculate Next Slide
   const nextSlide = () => {
@@ -85,11 +125,11 @@ const DeastinationRail = ({ destinations }) => {
 
           {/* Main Background Image */}
           <img
-            src={activeItem.img}
+            src={getDestinationImage(activeItem)}
             alt={activeItem.name}
             style={styles.mainImage}
             className={isAnimating ? "zoom-out" : "zoom-in"}
-            onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80"; }}
+            onError={(e) => { e.target.src = getPlaceholderImage(activeItem.name); }}
           />
           <div style={styles.imageOverlay} />
 
@@ -98,10 +138,10 @@ const DeastinationRail = ({ destinations }) => {
             <div style={styles.nextLabel}>Up Next</div>
             <div style={styles.nextContent}>
               <img
-                src={nextItem.img}
+                src={getDestinationImage(nextItem)}
                 alt="Next"
                 style={styles.nextImage}
-                onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80"; }}
+                onError={(e) => { e.target.src = getPlaceholderImage(nextItem.name); }}
               />
               <div style={styles.nextInfo}>
                 <div style={styles.nextTitle}>{nextItem.name}</div>
@@ -141,96 +181,114 @@ const styles = {
   wrapper: {
     maxWidth: "1200px",
     margin: "0 auto",
-    padding: "60px 0px",
+    padding: "80px 20px",
     fontFamily: "'Inter', sans-serif",
   },
   subHeading: {
-    fontSize: "0.9rem",
+    fontSize: "0.85rem",
     color: "#64748b",
     textTransform: "uppercase",
-    letterSpacing: "1px",
-    fontWeight: "500"
+    letterSpacing: "2px",
+    fontWeight: "600",
+    marginTop: "5px"
   },
   header: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: "30px",
-    paddingLeft: "15px",
-    borderLeft: "4px solid #3b82f6"
+    marginBottom: "35px",
+    paddingLeft: "20px",
+    borderLeft: "4px solid transparent",
+    borderImage: "linear-gradient(180deg, #3b82f6, #8b5cf6) 1"
   },
   heading: {
     fontFamily: "'Cinzel', serif",
-    fontSize: "2rem",
-    fontWeight: "900",
-    color: "#1e293b",
+    fontSize: "2.5rem",
+    fontWeight: "700",
+    color: "#0f172a",
     margin: "0 0 5px 0",
-    letterSpacing: "-0.5px"
+    letterSpacing: "-1px",
+    background: "linear-gradient(135deg, #1e293b 0%, #475569 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    backgroundClip: "text"
   },
   pagination: {
-    fontSize: "1rem",
+    fontSize: "1.1rem",
     fontWeight: "700",
-    color: "#64748b"
+    color: "#94a3b8",
+    background: "rgba(148, 163, 184, 0.1)",
+    padding: "8px 16px",
+    borderRadius: "50px"
   },
 
-  // --- MAIN CARD CONTAINER ---
+  // --- MAIN CARD CONTAINER - Premium Design ---
   mainCard: {
     display: "flex",
-    flexDirection: "row", // Side by Side
-    height: "500px",
+    flexDirection: "row",
+    height: "550px",
     backgroundColor: "#ffffff",
     borderRadius: "32px",
     overflow: "hidden",
-    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15)",
-    border: "1px solid #f1f5f9"
+    boxShadow: "0 30px 60px -15px rgba(0, 0, 0, 0.12), 0 10px 20px -5px rgba(0, 0, 0, 0.04)",
+    border: "1px solid rgba(241, 245, 249, 0.8)",
+    transition: "all 0.4s ease"
   },
 
-  // --- LEFT PANEL (Text) ---
+  // --- LEFT PANEL (Text) - Premium Design ---
   leftPanel: {
-    flex: "0 0 40%", // Takes 40% width
-    padding: "60px 50px",
+    flex: "0 0 42%",
+    padding: "70px 60px",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     backgroundColor: "#fff",
     position: "relative",
-    zIndex: 2
+    zIndex: 2,
+    background: "linear-gradient(135deg, #ffffff 0%, #fafbfc 100%)"
   },
   tag: {
     display: "inline-flex",
     alignItems: "center",
-    gap: "6px",
-    fontSize: "0.75rem",
+    gap: "8px",
+    fontSize: "0.7rem",
     textTransform: "uppercase",
     fontWeight: "700",
     color: "#3b82f6",
-    letterSpacing: "1px",
-    marginBottom: "20px"
+    letterSpacing: "2px",
+    marginBottom: "25px",
+    background: "linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)",
+    padding: "8px 16px",
+    borderRadius: "50px",
+    width: "fit-content"
   },
   title: {
     fontFamily: "'Cinzel', serif",
-    fontSize: "3rem",
+    fontSize: "3.2rem",
     color: "#0f172a",
-    margin: "0 0 20px 0",
-    lineHeight: "1.1"
+    margin: "0 0 25px 0",
+    lineHeight: "1.1",
+    letterSpacing: "-1px",
+    fontWeight: "600"
   },
   divider: {
-    width: "60px",
+    width: "80px",
     height: "4px",
-    backgroundColor: "#e2e8f0",
-    borderRadius: "2px",
-    marginBottom: "25px"
+    background: "linear-gradient(90deg, #3b82f6, #8b5cf6)",
+    borderRadius: "4px",
+    marginBottom: "30px"
   },
   description: {
-    fontSize: "1rem",
-    lineHeight: "1.7",
+    fontSize: "1.05rem",
+    lineHeight: "1.8",
     color: "#64748b",
-    marginBottom: "35px"
+    marginBottom: "40px",
+    fontWeight: "400"
   },
   metaRow: {
     display: "flex",
-    gap: "20px",
-    marginBottom: "40px",
+    gap: "25px",
+    marginBottom: "45px",
     fontSize: "0.9rem",
     fontWeight: "600",
     color: "#475569"
@@ -238,27 +296,31 @@ const styles = {
   metaItem: {
     display: "flex",
     alignItems: "center",
-    gap: "8px"
+    gap: "10px",
+    background: "rgba(241, 245, 249, 0.8)",
+    padding: "10px 16px",
+    borderRadius: "50px"
   },
   ctaBtn: {
     display: "inline-flex",
     alignItems: "center",
-    gap: "10px",
-    padding: "14px 32px",
-    backgroundColor: "#0f172a",
+    gap: "12px",
+    padding: "16px 36px",
+    background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
     color: "white",
     borderRadius: "50px",
-    fontSize: "0.9rem",
+    fontSize: "0.95rem",
     fontWeight: "600",
     border: "none",
     cursor: "pointer",
-    transition: "transform 0.2s",
-    width: "fit-content"
+    transition: "all 0.3s ease",
+    width: "fit-content",
+    boxShadow: "0 10px 30px -5px rgba(15, 23, 42, 0.3)"
   },
 
   // --- RIGHT PANEL (Image + Navigation) ---
   rightPanel: {
-    flex: "1", // Takes remaining space (60%)
+    flex: "1",
     position: "relative",
     overflow: "hidden"
   },
@@ -266,86 +328,97 @@ const styles = {
     width: "100%",
     height: "100%",
     objectFit: "cover",
+    transition: "transform 6s ease"
   },
   imageOverlay: {
     position: "absolute",
     inset: 0,
-    background: "linear-gradient(to right, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 20%)",
+    background: "linear-gradient(to right, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 25%)",
     pointerEvents: "none"
   },
 
-  // --- FLOATING "NEXT" CARD (The Card inside Card) ---
+  // --- FLOATING "NEXT" CARD - Premium Glassmorphism ---
   floatingCard: {
     position: "absolute",
-    bottom: "40px",
-    right: "40px",
-    width: "220px",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    backdropFilter: "blur(12px)",
-    borderRadius: "20px",
-    padding: "12px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+    bottom: "45px",
+    right: "45px",
+    width: "240px",
+    background: "rgba(255, 255, 255, 0.85)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    borderRadius: "24px",
+    padding: "16px",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.05)",
     cursor: "pointer",
-    transition: "transform 0.3s",
-    border: "1px solid rgba(255,255,255,0.5)"
+    transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+    border: "1px solid rgba(255,255,255,0.6)"
   },
   nextLabel: {
-    fontSize: "0.7rem",
+    fontSize: "0.65rem",
     fontWeight: "700",
     textTransform: "uppercase",
-    color: "#64748b",
-    marginBottom: "8px",
-    paddingLeft: "4px"
+    color: "#94a3b8",
+    marginBottom: "10px",
+    paddingLeft: "4px",
+    letterSpacing: "1.5px"
   },
   nextContent: {
     display: "flex",
     alignItems: "center",
-    gap: "12px"
+    gap: "14px"
   },
   nextImage: {
-    width: "50px",
-    height: "50px",
-    borderRadius: "12px",
-    objectFit: "cover"
+    width: "56px",
+    height: "56px",
+    borderRadius: "14px",
+    objectFit: "cover",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
   },
   nextInfo: {
     flex: 1,
     overflow: "hidden"
   },
   nextTitle: {
-    fontSize: "0.9rem",
+    fontSize: "0.95rem",
     fontWeight: "700",
-    color: "#1e293b",
+    color: "#0f172a",
     whiteSpace: "nowrap",
     overflow: "hidden",
-    textOverflow: "ellipsis"
+    textOverflow: "ellipsis",
+    marginBottom: "2px"
   },
   arrowIcon: {
-    marginTop: "2px",
-    color: "#3b82f6"
+    marginTop: "4px",
+    color: "#3b82f6",
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+    fontSize: "0.75rem"
   },
 
-  // --- CONTROLS ---
+  // --- CONTROLS - Premium Nav Buttons ---
   controls: {
     position: "absolute",
-    bottom: "40px",
-    left: "40px", // Bottom Left of the IMAGE section
+    bottom: "45px",
+    left: "45px",
     display: "flex",
-    gap: "12px"
+    gap: "14px"
   },
   navBtn: {
-    width: "48px",
-    height: "48px",
+    width: "54px",
+    height: "54px",
     borderRadius: "50%",
-    backgroundColor: "rgba(15, 23, 42, 0.8)",
+    background: "linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%)",
     color: "white",
-    border: "none",
+    border: "1px solid rgba(255,255,255,0.1)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
-    backdropFilter: "blur(4px)",
-    transition: "background 0.3s"
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    transition: "all 0.3s ease",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.2)"
   }
 };
 

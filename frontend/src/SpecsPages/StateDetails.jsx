@@ -737,9 +737,8 @@ import { cachedFetch } from "../utils/ContextManager";
 const API_URL = "http://localhost:5000/api/destinations"; // Corrected Port
 const WEATHER_KEY = "bd5e378503939ddaee76f12ad7a97608";
 
-// --- FALLBACK IMAGES (Guaranteed to work) ---
-const FALLBACK_HERO_IMAGE = "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=1920&q=80";
-const FALLBACK_DESTINATION_IMAGE = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80";
+// --- WIKIMEDIA SERVICE IMPORT ---
+import { getIndiaLocationImage, getImageUrl, getPlaceholderImage } from '../utils/wikimediaService';
 
 // --- UTILS ---
 const CONDITIONS = [
@@ -775,11 +774,51 @@ const StateDetails = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [impactLoading, setImpactLoading] = useState(true);
 
-  // IMAGE FALLBACK STATE
-  const [heroImageError, setHeroImageError] = useState(false);
-  const heroImageUrl = heroImageError ? FALLBACK_HERO_IMAGE : (data?.heroImage || FALLBACK_HERO_IMAGE);
+  // DYNAMIC IMAGE STATES (WIKIMEDIA)
+  const [heroImageUrl, setHeroImageUrl] = useState(null);
+  const [destinationImages, setDestinationImages] = useState({});
 
   useEffect(() => window.scrollTo(0, 0), [stateName]);
+
+  // FETCH DYNAMIC IMAGES FROM WIKIMEDIA
+  useEffect(() => {
+    const fetchDynamicImages = async () => {
+      if (!stateName) return;
+
+      try {
+        // Fetch hero image for the state
+        const heroImg = await getIndiaLocationImage(stateName, 'state');
+        if (heroImg) {
+          setHeroImageUrl(heroImg);
+        } else {
+          // Use placeholder if Wikimedia fails
+          setHeroImageUrl(getPlaceholderImage(stateName));
+        }
+
+        // Fetch images for destinations in realDestinations
+        if (realDestinations.length > 0) {
+          const imagePromises = realDestinations.map(async (dest, index) => {
+            const img = await getImageUrl(dest.name, 'city');
+            return { id: dest.id, img };
+          });
+
+          const results = await Promise.allSettled(imagePromises);
+          const newImages = {};
+          results.forEach((result) => {
+            if (result.status === 'fulfilled' && result.value.img) {
+              newImages[result.value.id] = result.value.img;
+            }
+          });
+          setDestinationImages(newImages);
+        }
+      } catch (error) {
+        console.log('Error fetching Wikimedia images:', error);
+        setHeroImageUrl(getPlaceholderImage(stateName));
+      }
+    };
+
+    fetchDynamicImages();
+  }, [stateName, realDestinations]);
 
   // 1. WEATHER & GPS (WITH CACHING TO FIX 429)
   useEffect(() => {
@@ -898,14 +937,12 @@ const StateDetails = () => {
 
       {/* 1. HERO */}
       <div style={styles.heroSection}>
-        {/* Hidden image to detect broken heroImage */}
-        <img
-          src={data.heroImage}
-          alt=""
-          style={{ display: 'none' }}
-          onError={() => setHeroImageError(true)}
-        />
-        <div style={{ ...styles.heroBg, backgroundImage: `url(${heroImageUrl})` }} />
+        <div style={{
+          ...styles.heroBg,
+          backgroundImage: heroImageUrl
+            ? `url(${heroImageUrl})`
+            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+        }} />
         <div style={styles.heroOverlay} />
         <button onClick={() => navigate('/map')} style={styles.backBtn}><ArrowLeft size={20} /> Back</button>
 
@@ -966,23 +1003,114 @@ const StateDetails = () => {
                         ...styles.placeCard,
                         borderColor: selectedPlace?.id === place.id ? '#3b82f6' : '#e2e8f0',
                         backgroundColor: selectedPlace?.id === place.id ? '#eff6ff' : 'white',
-                        transform: selectedPlace?.id === place.id ? 'scale(1.02)' : 'scale(1)'
+                        transform: selectedPlace?.id === place.id ? 'translateY(-4px)' : 'translateY(0)',
+                        boxShadow: selectedPlace?.id === place.id
+                          ? '0 12px 30px -8px rgba(59, 130, 246, 0.25)'
+                          : '0 4px 15px rgba(0,0,0,0.05)',
+                        height: '280px',
+                        display: 'flex',
+                        flexDirection: 'column'
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '0.9rem' }}>{place.name}</div>
-                        <div style={{ fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', background: '#f1f5f9', color: '#64748b' }}>
+                      {/* Destination Image */}
+                      <div style={{
+                        height: '140px',
+                        minHeight: '140px',
+                        borderRadius: '16px 16px 0 0',
+                        overflow: 'hidden',
+                        position: 'relative'
+                      }}>
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          background: destinationImages[place.id]
+                            ? `url(${destinationImages[place.id]}) center/cover no-repeat`
+                            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          transition: 'transform 0.4s ease'
+                        }}>
+                          {!destinationImages[place.id] && (
+                            <div style={{
+                              height: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontWeight: '600',
+                              fontSize: '1rem',
+                              textShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                            }}>
+                              {place.name}
+                            </div>
+                          )}
+                        </div>
+                        {/* Type Badge on Image */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '12px',
+                          right: '12px',
+                          fontSize: '0.65rem',
+                          padding: '4px 10px',
+                          borderRadius: '20px',
+                          background: 'rgba(255,255,255,0.9)',
+                          backdropFilter: 'blur(8px)',
+                          color: '#475569',
+                          fontWeight: '600',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
                           {place.description || 'Place'}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Leaf size={12} color={place.carbon_intensity_factor > 1.2 ? '#f59e0b' : '#22c55e'} />
-                          Risk: {place.carbon_intensity_factor}x
+
+                      {/* Card Content */}
+                      <div style={{
+                        padding: '16px',
+                        flex: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
+                      }}>
+                        <div style={{
+                          fontWeight: '700',
+                          color: '#0f172a',
+                          fontSize: '1rem',
+                          marginBottom: '12px',
+                          lineHeight: '1.3'
+                        }}>
+                          {place.name}
                         </div>
-                        <div style={{ fontSize: '0.9rem', color: place.cached_footfall > 30000 ? '#ef4444' : '#22c55e', fontWeight: '700' }}>
-                          <Users size={12} style={{ display: 'inline', marginRight: 4 }} />
-                          {place.cached_footfall > 1000 ? (place.cached_footfall / 1000).toFixed(1) + 'k' : place.cached_footfall}
+
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          paddingTop: '12px',
+                          borderTop: '1px solid #f1f5f9'
+                        }}>
+                          <div style={{
+                            fontSize: '0.75rem',
+                            color: '#64748b',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: place.carbon_intensity_factor > 1.2 ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)',
+                            padding: '6px 10px',
+                            borderRadius: '20px'
+                          }}>
+                            <Leaf size={14} color={place.carbon_intensity_factor > 1.2 ? '#f59e0b' : '#22c55e'} />
+                            <span style={{ fontWeight: '600' }}>{place.carbon_intensity_factor}x</span>
+                          </div>
+                          <div style={{
+                            fontSize: '1rem',
+                            color: place.cached_footfall > 30000 ? '#ef4444' : '#22c55e',
+                            fontWeight: '700',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            <Users size={14} />
+                            {place.cached_footfall > 1000 ? (place.cached_footfall / 1000).toFixed(1) + 'k' : place.cached_footfall}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1063,12 +1191,162 @@ const StateDetails = () => {
       </div>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@300;400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+        
         body { margin: 0; background: #f8fafc; }
-        .levitating-map { width: 100%; height: 100%; animation: levitate 6s ease-in-out infinite; filter: drop-shadow(0 20px 30px rgba(0,0,0,0.15)); }
-        @keyframes levitate { 0% { transform: translateY(0px) rotateX(5deg); } 50% { transform: translateY(-25px) rotateX(0deg); } 100% { transform: translateY(0px) rotateX(5deg); } }
+        
+        /* Levitating 3D Map */
+        .levitating-map { 
+          width: 100%; 
+          height: 100%; 
+          animation: levitate 6s ease-in-out infinite; 
+          filter: drop-shadow(0 20px 30px rgba(0,0,0,0.15)); 
+        }
+        @keyframes levitate { 
+          0% { transform: translateY(0px) rotateX(5deg); } 
+          50% { transform: translateY(-25px) rotateX(0deg); } 
+          100% { transform: translateY(0px) rotateX(5deg); } 
+        }
+        
+        /* Weather Track Scrollbar */
         .weather-track::-webkit-scrollbar { height: 4px; }
         .weather-track::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); borderRadius: 4px; }
+        
+        /* Premium Card Hover Effects */
+        .place-card-hover:hover {
+          transform: translateY(-8px) scale(1.02);
+          box-shadow: 0 20px 40px -10px rgba(59, 130, 246, 0.3);
+        }
+        
+        /* Shimmer Loading Effect */
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .shimmer-loading {
+          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+        }
+        
+        /* Floating Particles Animation */
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 1; }
+          50% { transform: translateY(-20px) rotate(180deg); opacity: 0.5; }
+        }
+        
+        /* Pulse Glow Effect */
+        @keyframes pulseGlow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+          50% { box-shadow: 0 0 20px 10px rgba(59, 130, 246, 0.1); }
+        }
+        
+        /* Gradient Animation for Hero */
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        
+        /* Fade In Up Animation */
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-up {
+          animation: fadeInUp 0.6s ease-out forwards;
+        }
+        
+        /* Scale In Animation */
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.9); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .scale-in {
+          animation: scaleIn 0.4s ease-out forwards;
+        }
+        
+        /* Hero Image Parallax */
+        .parallax-hero {
+          background-attachment: fixed;
+          background-position: center;
+          background-repeat: no-repeat;
+          background-size: cover;
+        }
+        
+        /* Glassmorphism Effect */
+        .glass-effect {
+          background: rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Card Image Zoom on Hover */
+        .card-image-zoom {
+          transition: transform 0.5s ease;
+        }
+        .card-image-zoom:hover {
+          transform: scale(1.1);
+        }
+        
+        /* Breathing Effect for Icons */
+        @keyframes breathe {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+        
+        /* Text Gradient Animation */
+        .gradient-text {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+          background-size: 200% 200%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: gradientShift 5s ease infinite;
+        }
+        
+        /* Smooth Reveal */
+        .reveal-animation {
+          opacity: 0;
+          transform: translateY(20px);
+          animation: fadeInUp 0.6s ease forwards;
+        }
+        .reveal-animation:nth-child(1) { animation-delay: 0.1s; }
+        .reveal-animation:nth-child(2) { animation-delay: 0.2s; }
+        .reveal-animation:nth-child(3) { animation-delay: 0.3s; }
+        .reveal-animation:nth-child(4) { animation-delay: 0.4s; }
+        
+        /* Premium Button Hover */
+        .premium-btn {
+          position: relative;
+          overflow: hidden;
+          transition: all 0.3s ease;
+        }
+        .premium-btn::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+          transition: left 0.5s ease;
+        }
+        .premium-btn:hover::before {
+          left: 100%;
+        }
+        
+        /* Neon Glow Effect */
+        .neon-glow {
+          text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #667eea, #764ba2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #5a67d8, #6b46a1); }
       `}</style>
     </div>
   );
@@ -1089,65 +1367,378 @@ const WeatherCard = ({ day, index }) => {
 
 // --- STYLES ---
 const styles = {
-  pageWrapper: { fontFamily: "'Inter', sans-serif", color: "#1e293b", background: "#f1f5f9", minHeight: "100vh" },
-  heroSection: { height: "auto", minHeight: "90vh", position: "relative", display: "flex", alignItems: "flex-end", padding: "0 5% 80px", clipPath: "polygon(0 0, 100% 0, 100% 95%, 0 100%)", marginBottom: "-50px" },
-  heroBg: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", zIndex: 0 },
-  heroOverlay: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", background: "linear-gradient(to top, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.4))", zIndex: 1 },
-  heroContent: { position: "relative", zIndex: 10, width: "100%", maxWidth: "1200px", margin: "0 auto", paddingTop: "120px" },
-  backBtn: { position: "absolute", top: 30, left: 30, zIndex: 20, display: "flex", alignItems: "center", gap: "10px", background: "rgba(255,255,255,0.1)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.2)", color: "white", padding: "10px 20px", borderRadius: "30px", cursor: "pointer", fontWeight: "600" },
-  tagline: { color: "#fbbf24", letterSpacing: "4px", fontSize: "0.9rem", fontWeight: "bold", background: "rgba(0,0,0,0.5)", padding: "5px 10px", borderRadius: "4px" },
-  title: { fontFamily: "'Cinzel', serif", fontSize: "clamp(3rem, 6vw, 5rem)", color: "white", margin: "10px 0 20px", textShadow: "0 10px 30px rgba(0,0,0,0.5)", lineHeight: 1 },
-  statsRow: { display: "flex", gap: "15px", flexWrap: "wrap", marginBottom: "40px" },
-  statBadge: { display: "flex", alignItems: "center", gap: "8px", background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", padding: "8px 16px", borderRadius: "50px", color: "white", fontSize: "0.9rem", border: "1px solid rgba(255,255,255,0.1)" },
+  // Page wrapper with subtle gradient background
+  pageWrapper: {
+    fontFamily: "'Inter', sans-serif",
+    color: "#1e293b",
+    background: "linear-gradient(180deg, #f8fafc 0%, #e2e8f0 50%, #f8fafc 100%)",
+    minHeight: "100vh",
+    overflowX: "hidden"
+  },
 
-  weatherStrip: { width: "100%", background: "rgba(255, 255, 255, 0.08)", backdropFilter: "blur(16px)", borderRadius: "24px", border: "1px solid rgba(255, 255, 255, 0.15)", padding: "20px 25px", display: "flex", flexDirection: "column", gap: "15px", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)" },
-  weatherStripHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "10px" },
-  weatherLabel: { fontSize: "0.8rem", color: "#fbbf24", letterSpacing: "2px", fontWeight: "800" },
-  weatherLoc: { fontSize: "0.8rem", color: "#94a3b8", display: "flex", alignItems: "center", gap: "5px", textTransform: "uppercase", letterSpacing: "1px" },
-  weatherStripTrack: { display: "flex", gap: "15px", overflowX: "auto", paddingBottom: "2px", scrollSnapType: "x mandatory", className: "weather-track" },
-  weatherLoading: { color: "white", display: "flex", gap: "10px", fontSize: "0.9rem", padding: "20px" },
-  weatherCard: { flexShrink: 0, width: "70px", height: "120px", background: "rgba(0,0,0,0.2)", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", padding: "10px 5px", scrollSnapAlign: "start", border: "1px solid rgba(255,255,255,0.05)" },
-  wcHeader: { textAlign: "center" }, wcDay: { fontSize: "0.6rem", color: "#94a3b8", textTransform: "uppercase" }, wcDate: { fontSize: "0.9rem", fontWeight: "bold", color: "white" },
+  // Hero Section - Premium Full-Screen Experience
+  heroSection: {
+    height: "auto",
+    minHeight: "95vh",
+    position: "relative",
+    display: "flex",
+    alignItems: "flex-end",
+    padding: "0 5% 100px",
+    clipPath: "polygon(0 0, 100% 0, 100% 92%, 0 100%)",
+    marginBottom: "-80px"
+  },
+  heroBg: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundAttachment: "fixed",
+    zIndex: 0,
+    transition: "opacity 0.5s ease"
+  },
+  heroOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    background: "linear-gradient(180deg, rgba(15, 23, 42, 0.3) 0%, rgba(15, 23, 42, 0.5) 40%, rgba(15, 23, 42, 0.95) 100%)",
+    zIndex: 1
+  },
+  heroContent: {
+    position: "relative",
+    zIndex: 10,
+    width: "100%",
+    maxWidth: "1200px",
+    margin: "0 auto",
+    paddingTop: "120px"
+  },
+
+  // Back Button - Glassmorphism Style
+  backBtn: {
+    position: "absolute",
+    top: 30,
+    left: 30,
+    zIndex: 20,
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    background: "rgba(255,255,255,0.1)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    border: "1px solid rgba(255,255,255,0.25)",
+    color: "white",
+    padding: "12px 24px",
+    borderRadius: "50px",
+    cursor: "pointer",
+    fontWeight: "600",
+    fontSize: "0.9rem",
+    transition: "all 0.3s ease",
+    boxShadow: "0 8px 32px rgba(0,0,0,0.1)"
+  },
+
+  // Tagline - Premium Badge
+  tagline: {
+    color: "#fbbf24",
+    letterSpacing: "5px",
+    fontSize: "0.85rem",
+    fontWeight: "700",
+    background: "linear-gradient(135deg, rgba(251,191,36,0.2) 0%, rgba(245,158,11,0.1) 100%)",
+    padding: "8px 16px",
+    borderRadius: "8px",
+    border: "1px solid rgba(251,191,36,0.3)",
+    display: "inline-block",
+    textTransform: "uppercase"
+  },
+
+  // Title - Grand Typography
+  title: {
+    fontFamily: "'Cinzel', serif",
+    fontSize: "clamp(3.5rem, 8vw, 6rem)",
+    color: "white",
+    margin: "20px 0 30px",
+    textShadow: "0 4px 20px rgba(0,0,0,0.4), 0 10px 50px rgba(0,0,0,0.3)",
+    lineHeight: 1,
+    letterSpacing: "-2px",
+    fontWeight: "700"
+  },
+
+  // Stats Row
+  statsRow: {
+    display: "flex",
+    gap: "15px",
+    flexWrap: "wrap",
+    marginBottom: "40px"
+  },
+  statBadge: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    background: "rgba(255,255,255,0.08)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    padding: "12px 20px",
+    borderRadius: "50px",
+    color: "white",
+    fontSize: "0.9rem",
+    fontWeight: "500",
+    border: "1px solid rgba(255,255,255,0.15)",
+    transition: "all 0.3s ease",
+    boxShadow: "0 4px 15px rgba(0,0,0,0.1)"
+  },
+
+  // Weather Strip - Premium Glassmorphism
+  weatherStrip: {
+    width: "100%",
+    background: "rgba(255, 255, 255, 0.06)",
+    backdropFilter: "blur(24px)",
+    WebkitBackdropFilter: "blur(24px)",
+    borderRadius: "28px",
+    border: "1px solid rgba(255, 255, 255, 0.12)",
+    padding: "24px 30px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "18px",
+    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.1)"
+  },
+  weatherStripHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    paddingBottom: "14px"
+  },
+  weatherLabel: {
+    fontSize: "0.75rem",
+    color: "#fbbf24",
+    letterSpacing: "3px",
+    fontWeight: "800",
+    textTransform: "uppercase"
+  },
+  weatherLoc: {
+    fontSize: "0.75rem",
+    color: "rgba(255,255,255,0.6)",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    textTransform: "uppercase",
+    letterSpacing: "1.5px",
+    fontWeight: "600"
+  },
+  weatherStripTrack: {
+    display: "flex",
+    gap: "12px",
+    overflowX: "auto",
+    paddingBottom: "4px",
+    scrollSnapType: "x mandatory"
+  },
+  weatherLoading: {
+    color: "rgba(255,255,255,0.7)",
+    display: "flex",
+    gap: "10px",
+    fontSize: "0.9rem",
+    padding: "20px"
+  },
+  weatherCard: {
+    flexShrink: 0,
+    width: "75px",
+    height: "130px",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)",
+    borderRadius: "18px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "14px 8px",
+    scrollSnapAlign: "start",
+    border: "1px solid rgba(255,255,255,0.08)",
+    transition: "all 0.3s ease",
+    cursor: "default"
+  },
+  wcHeader: { textAlign: "center" },
+  wcDay: { fontSize: "0.6rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" },
+  wcDate: { fontSize: "1rem", fontWeight: "700", color: "white" },
   wcIconWrapper: { display: "flex", alignItems: "center", justifyContent: "center" },
-  wcFooter: { textAlign: "center" }, wcTemp: { fontSize: "0.85rem", fontWeight: "bold", color: "white" }, wcMinTemp: { fontSize: "0.7rem", color: "#64748b" },
+  wcFooter: { textAlign: "center" },
+  wcTemp: { fontSize: "1rem", fontWeight: "700", color: "white" },
+  wcMinTemp: { fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", fontWeight: "500" },
 
-  contentContainer: { maxWidth: "1400px", margin: "0 auto", padding: "0 20px 100px", position: "relative", zIndex: 5 },
-  splitLayout: { display: "flex", flexDirection: "row", gap: "40px", marginTop: "20px", alignItems: "center", flexWrap: "wrap" },
-  floatingMapContainer: { flex: "1.5", height: "550px", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", perspective: "1000px" },
-  mapPedestalShadow: { width: "60%", height: "40px", background: "radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 70%)", borderRadius: "50%", transform: "rotateX(60deg) translateY(60px)", filter: "blur(10px)", zIndex: -1 },
-  bentoBox: { background: "white", borderRadius: "24px", padding: "30px", boxShadow: "0 10px 40px -10px rgba(0,0,0,0.05)", border: "1px solid #f1f5f9", position: "relative", overflow: "hidden" },
-  bioBox: { flex: "1", minWidth: "300px", display: "flex", flexDirection: "column", justifyContent: "center", minHeight: "400px" },
+  // Content Container
+  contentContainer: {
+    maxWidth: "1400px",
+    margin: "0 auto",
+    padding: "40px 20px 120px",
+    position: "relative",
+    zIndex: 5
+  },
 
-  sectionSpacer: { marginTop: "60px" },
-  sectionTitle: { fontSize: "2rem", fontFamily: "'Cinzel', serif", color: "#1e293b", marginBottom: "10px" },
-  sectionSubtitle: { fontSize: "1rem", color: "#64748b", marginBottom: "30px" },
+  // Split Layout
+  splitLayout: {
+    display: "flex",
+    flexDirection: "row",
+    gap: "50px",
+    marginTop: "40px",
+    alignItems: "stretch",
+    flexWrap: "wrap"
+  },
 
-  plannerGrid: { display: "flex", gap: "30px", flexWrap: "wrap" },
+  // Floating Map Container with 3D Effect
+  floatingMapContainer: {
+    flex: "1.5",
+    minHeight: "550px",
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    perspective: "1000px",
+    background: "linear-gradient(180deg, rgba(99,102,241,0.05) 0%, transparent 100%)",
+    borderRadius: "32px",
+    padding: "20px"
+  },
+  mapPedestalShadow: {
+    width: "70%",
+    height: "50px",
+    background: "radial-gradient(ellipse at center, rgba(99,102,241,0.15) 0%, rgba(0,0,0,0) 70%)",
+    borderRadius: "50%",
+    transform: "rotateX(60deg) translateY(60px)",
+    filter: "blur(15px)",
+    zIndex: -1
+  },
+
+  // Bento Box - Premium Card Style
+  bentoBox: {
+    background: "white",
+    borderRadius: "28px",
+    padding: "35px",
+    boxShadow: "0 25px 60px -15px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.03)",
+    border: "1px solid rgba(226,232,240,0.8)",
+    position: "relative",
+    overflow: "hidden",
+    transition: "all 0.4s ease"
+  },
+  bioBox: {
+    flex: "1",
+    minWidth: "320px",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    minHeight: "450px"
+  },
+
+  // Section Styling
+  sectionSpacer: {
+    marginTop: "80px"
+  },
+  sectionTitle: {
+    fontSize: "2.5rem",
+    fontFamily: "'Cinzel', serif",
+    color: "#0f172a",
+    marginBottom: "12px",
+    fontWeight: "600",
+    letterSpacing: "-0.5px",
+    background: "linear-gradient(135deg, #1e293b 0%, #475569 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    backgroundClip: "text"
+  },
+  sectionSubtitle: {
+    fontSize: "1.1rem",
+    color: "#64748b",
+    marginBottom: "35px",
+    fontWeight: "400",
+    lineHeight: "1.6"
+  },
+
+  // Planner Grid - Modern Layout
+  plannerGrid: {
+    display: "flex",
+    gap: "35px",
+    flexWrap: "wrap"
+  },
   plannerList: {
     flex: "2",
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-    gap: "15px",
-    maxHeight: "500px",
+    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+    gap: "20px",
+    maxHeight: "650px",
     overflowY: "auto",
-    paddingRight: "5px"
+    paddingRight: "10px"
   },
-  placeCard: { padding: "15px", borderRadius: "12px", border: "1px solid #e2e8f0", cursor: "pointer", transition: "all 0.2s", background: "white", boxShadow: "0 2px 5px rgba(0,0,0,0.02)" },
 
+  // Place Card - Premium Design
+  placeCard: {
+    padding: "0",
+    borderRadius: "20px",
+    border: "none",
+    cursor: "pointer",
+    transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+    background: "white",
+    boxShadow: "0 4px 20px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02)",
+    overflow: "hidden"
+  },
+
+  // Planner Calculator - Sticky Sidebar
   plannerCalculator: {
     flex: "1",
-    minWidth: "300px",
-    background: "white", padding: "25px", borderRadius: "20px", border: "1px solid #e2e8f0", boxShadow: "0 20px 40px -10px rgba(0,0,0,0.1)",
+    minWidth: "340px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fafbfc 100%)",
+    padding: "30px",
+    borderRadius: "24px",
+    border: "1px solid rgba(226,232,240,0.6)",
+    boxShadow: "0 25px 50px -12px rgba(0,0,0,0.08)",
     height: "fit-content",
     position: "sticky",
-    top: "20px"
+    top: "30px"
   },
-  calcHeader: { borderBottom: "1px solid #e2e8f0", paddingBottom: "15px", marginBottom: "20px" },
-  calcGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" },
-  calcMetric: { padding: "15px", borderRadius: "12px", background: "#f8fafc", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "5px" },
-  metricVal: { fontSize: "1.5rem", fontWeight: "700", color: "#1e293b" },
-  metricLabel: { fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", letterSpacing: "1px" },
-  loading: { height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8" }
+  calcHeader: {
+    borderBottom: "2px solid #f1f5f9",
+    paddingBottom: "18px",
+    marginBottom: "24px"
+  },
+  calcGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "18px"
+  },
+  calcMetric: {
+    padding: "20px",
+    borderRadius: "16px",
+    background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+    textAlign: "center",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "8px",
+    border: "1px solid rgba(226,232,240,0.5)",
+    transition: "all 0.3s ease"
+  },
+  metricVal: {
+    fontSize: "1.75rem",
+    fontWeight: "800",
+    color: "#0f172a",
+    letterSpacing: "-0.5px"
+  },
+  metricLabel: {
+    fontSize: "0.7rem",
+    color: "#64748b",
+    textTransform: "uppercase",
+    letterSpacing: "1.5px",
+    fontWeight: "600"
+  },
+
+  // Loading State
+  loading: {
+    height: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#94a3b8",
+    background: "linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)"
+  }
 };
 
 export default StateDetails;

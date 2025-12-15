@@ -5,6 +5,7 @@ import { Tooltip as ReactTooltip } from "react-tooltip";
 import { STATE_DATA } from "../../Data/TourismData";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { getPlaceholderImage } from "../../utils/wikimediaService";
 
 // --- 1. ASSETS & FONTS ---
 // Import Google Fonts dynamically
@@ -67,7 +68,7 @@ const INDIA_MAP_URL = "https://raw.githubusercontent.com/geohacker/india/master/
 const DEFAULT_STATE_DATA = {
   tagline: "Explore the Unexplored",
   description: "Discover the hidden gems of this beautiful region. From rich cultural heritage to stunning landscapes, this state offers a unique glimpse into the diversity of India.",
-  image: "https://images.unsplash.com/photo-1532375810709-75b1da00537c?q=80&w=1920&auto=format&fit=crop", // Generic India Image
+  image: null, // Will be fetched dynamically from Wikimedia Commons
   stats: { visitors: "N/A", climate: "Varied", bestTime: "Year Round" },
   destinations: []
 };
@@ -80,6 +81,76 @@ const NAME_FIXES = {
 const VintageStatePage = ({ stateName, onBack }) => {
   const data = STATE_DATA[stateName] || DEFAULT_STATE_DATA;
   const [geoData, setGeoData] = useState(null);
+  const [heroImage, setHeroImage] = useState(null);
+  const [destinationImages, setDestinationImages] = useState({});
+  const [foodImages, setFoodImages] = useState({});
+  const [imagesLoading, setImagesLoading] = useState(true);
+
+  // Dynamic import for Wikimedia service (lazy load) - ALWAYS fetch from Wikimedia
+  useEffect(() => {
+    const loadDynamicImages = async () => {
+      setImagesLoading(true);
+      try {
+        const { getIndiaLocationImage, getImageUrl } = await import('../../utils/wikimediaService');
+
+        // Always fetch hero image from Wikimedia for accuracy
+        const fetchedHeroImage = await getIndiaLocationImage(stateName, 'state');
+        if (fetchedHeroImage) {
+          setHeroImage(fetchedHeroImage);
+        }
+
+        // Fetch destination images from Wikimedia
+        if (data.destinations && data.destinations.length > 0) {
+          const imagePromises = data.destinations.map(async (dest, index) => {
+            // Determine context based on destination type
+            const contextMap = {
+              'City': 'city', 'Desert': 'state', 'Lakes': 'city', 'Wonder': 'monument',
+              'Spiritual': 'temple', 'Pilgrimage': 'temple', 'Lake': 'city', 'Skiing': 'mountain',
+              'Hill Station': 'mountain', 'Nature': 'mountain', 'Backwaters': 'city',
+              'Hills': 'mountain', 'Heritage': 'monument', 'Beach': 'beach', 'Wildlife': 'wildlife',
+              'Temple': 'temple', 'Island': 'beach', 'Monument': 'monument', 'Yoga': 'city',
+              'Tea': 'mountain', 'Church': 'temple', 'Ruins': 'monument', 'Fort': 'monument'
+            };
+            const context = contextMap[dest.type] || 'city';
+            const img = await getImageUrl(dest.name, context);
+            return { index, img };
+          });
+
+          const results = await Promise.allSettled(imagePromises);
+          const newImages = {};
+          results.forEach((result) => {
+            if (result.status === 'fulfilled' && result.value.img) {
+              newImages[result.value.index] = result.value.img;
+            }
+          });
+          setDestinationImages(newImages);
+        }
+
+        // Fetch food images from Wikimedia
+        if (data.food && data.food.length > 0) {
+          const foodPromises = data.food.map(async (food, index) => {
+            const img = await getImageUrl(food.name, 'food');
+            return { index, img };
+          });
+
+          const foodResults = await Promise.allSettled(foodPromises);
+          const newFoodImages = {};
+          foodResults.forEach((result) => {
+            if (result.status === 'fulfilled' && result.value.img) {
+              newFoodImages[result.value.index] = result.value.img;
+            }
+          });
+          setFoodImages(newFoodImages);
+        }
+      } catch (error) {
+        console.log('Error loading Wikimedia images:', error);
+      } finally {
+        setImagesLoading(false);
+      }
+    };
+
+    loadDynamicImages();
+  }, [stateName, data]);
 
   useEffect(() => {
     // Re-using the robust fetch logic for the district map
@@ -98,16 +169,33 @@ const VintageStatePage = ({ stateName, onBack }) => {
             setGeoData(json);
             break;
           }
-        } catch(e) {}
+        } catch (e) { }
       }
     };
     fetchDistricts();
   }, [stateName]);
 
+  // Get destination image with Wikimedia preference
+  const getDestImage = (dest, index) => {
+    if (destinationImages[index]) return destinationImages[index];
+    return getPlaceholderImage(dest.name);
+  };
+
+  // Get food image with Wikimedia preference
+  const getFoodImage = (food, index) => {
+    if (foodImages[index]) return foodImages[index];
+    return getPlaceholderImage(food.name);
+  };
+
   return (
     <div style={styles.vintageContainer}>
       {/* HERO SECTION */}
-      <div style={{ ...styles.heroSection, backgroundImage: `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.6)), url(${data.image})` }}>
+      <div style={{
+        ...styles.heroSection,
+        backgroundImage: heroImage
+          ? `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.6)), url(${heroImage})`
+          : `linear-gradient(135deg, #667eea 0%, #764ba2 100%)`
+      }}>
         <button onClick={onBack} style={styles.backButton}>← Return to Map</button>
         <div style={styles.heroContent}>
           <h2 style={styles.vintageTagline}>{data.tagline}</h2>
@@ -128,20 +216,52 @@ const VintageStatePage = ({ stateName, onBack }) => {
         {/* DESCRIPTION */}
         <div style={styles.section}>
           <h3 style={styles.sectionHeader}>The Story</h3>
-          <p style={styles.bodyText}>{data.description}</p>
+          <p style={styles.bodyText}>{data.description || data.desc}</p>
         </div>
 
         {/* TOP DESTINATIONS */}
-        {data.destinations.length > 0 && (
+        {data.destinations && data.destinations.length > 0 && (
           <div style={styles.section}>
             <h3 style={styles.sectionHeader}>Top Destinations</h3>
             <div style={styles.cardGrid}>
               {data.destinations.map((dest, i) => (
                 <div key={i} style={styles.destCard}>
-                  <img src={dest.img} alt={dest.name} style={styles.cardImg} />
+                  <img
+                    src={getDestImage(dest, i)}
+                    alt={dest.name}
+                    style={styles.cardImg}
+                    onError={(e) => {
+                      e.target.src = getPlaceholderImage(dest.name);
+                    }}
+                  />
                   <div style={styles.cardInfo}>
                     <h4 style={styles.cardTitle}>{dest.name}</h4>
-                    <p style={styles.cardDesc}>{dest.desc}</p>
+                    <p style={styles.cardDesc}>{dest.desc || dest.type}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* LOCAL CUISINE */}
+        {data.food && data.food.length > 0 && (
+          <div style={styles.section}>
+            <h3 style={styles.sectionHeader}>Local Cuisine</h3>
+            <div style={styles.cardGrid}>
+              {data.food.map((food, i) => (
+                <div key={i} style={styles.destCard}>
+                  <img
+                    src={getFoodImage(food, i)}
+                    alt={food.name}
+                    style={styles.cardImg}
+                    onError={(e) => {
+                      e.target.src = getPlaceholderImage(food.name);
+                    }}
+                  />
+                  <div style={styles.cardInfo}>
+                    <h4 style={styles.cardTitle}>{food.name}</h4>
+                    <p style={styles.cardDesc}>{food.type}</p>
                   </div>
                 </div>
               ))}
@@ -156,19 +276,19 @@ const VintageStatePage = ({ stateName, onBack }) => {
             <div style={styles.mapInner}>
               {geoData ? (
                 <MapContainer center={[20, 78]} zoom={6} style={{ height: "100%", width: "100%", background: "#eaddcf" }}>
-                  <GeoJSON 
-                    data={geoData} 
-                    style={() => ({ fillColor: "#c19a6b", color: "#5c4033", weight: 1, fillOpacity: 0.6 })} 
+                  <GeoJSON
+                    data={geoData}
+                    style={() => ({ fillColor: "#c19a6b", color: "#5c4033", weight: 1, fillOpacity: 0.6 })}
                     onEachFeature={(feature, layer) => {
                       layer.bindTooltip(feature.properties.dtname || feature.properties.district, { direction: "center", className: 'vintage-tooltip' });
-                      layer.on('mouseover', function(){ this.setStyle({fillColor: "#8b4513", fillOpacity: 0.8}) });
-                      layer.on('mouseout', function(){ this.setStyle({fillColor: "#c19a6b", fillOpacity: 0.6}) });
+                      layer.on('mouseover', function () { this.setStyle({ fillColor: "#8b4513", fillOpacity: 0.8 }) });
+                      layer.on('mouseout', function () { this.setStyle({ fillColor: "#c19a6b", fillOpacity: 0.6 }) });
                     }}
                   />
                   <FitBounds geoData={geoData} />
                 </MapContainer>
               ) : (
-                <div style={{display:"flex", alignItems:"center", justifyContent:"center", height:"100%", color:"#8b4513"}}>Loading Historical Map...</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#8b4513" }}>Loading Historical Map...</div>
               )}
             </div>
           </div>
@@ -242,13 +362,13 @@ const IndiaTourism = () => {
                     onClick={() => setSelectedState(stateName)}
                     onMouseEnter={() => setHoveredRegion(geo.rsmKey)}
                     onMouseLeave={() => setHoveredRegion(null)}
-                    
+
                     // 3D & STYLE PROPS
                     fill={isHovered ? "#fff" : getColor(stateName)}
                     stroke="#FFF"
                     strokeWidth={0.5}
                     className="state-shape"
-                    style={{ default: {outline:"none"}, hover: {outline:"none", cursor:"pointer"}, pressed: {outline:"none"} }}
+                    style={{ default: { outline: "none" }, hover: { outline: "none", cursor: "pointer" }, pressed: { outline: "none" } }}
                     data-tooltip-id="map-tooltip"
                     data-tooltip-content={`Explore ${stateName}`}
                   />
@@ -307,7 +427,7 @@ const styles = {
   heroContent: { textAlign: "center", color: "#fff", textShadow: "0 4px 10px rgba(0,0,0,0.8)" },
   vintageTitle: { fontSize: "6rem", margin: 0, fontFamily: "'Cinzel', serif", letterSpacing: "5px" },
   vintageTagline: { fontSize: "1.5rem", fontStyle: "italic", fontFamily: "'Playfair Display', serif" },
-  
+
   paperContent: {
     maxWidth: "1000px", margin: "-50px auto 50px", background: "#fff",
     padding: "40px", borderRadius: "2px", boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
@@ -318,21 +438,21 @@ const styles = {
     borderBottom: "2px solid #eee", marginBottom: "30px"
   },
   statDivider: { width: "1px", background: "#ddd" },
-  
+
   section: { marginBottom: "50px" },
-  sectionHeader: { 
-    fontSize: "2rem", color: "#8b4513", borderBottom: "1px solid #d4af37", 
+  sectionHeader: {
+    fontSize: "2rem", color: "#8b4513", borderBottom: "1px solid #d4af37",
     display: "inline-block", paddingBottom: "10px", marginBottom: "20px", fontFamily: "'Cinzel', serif"
   },
   bodyText: { fontSize: "1.2rem", lineHeight: "1.8", color: "#333", fontFamily: "'Lato', sans-serif" },
-  
+
   cardGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "20px" },
   destCard: { background: "#fff", boxShadow: "0 5px 15px rgba(0,0,0,0.08)", borderRadius: "8px", overflow: "hidden", transition: "transform 0.3s" },
   cardImg: { width: "100%", height: "180px", objectFit: "cover" },
   cardInfo: { padding: "15px" },
   cardTitle: { margin: "0 0 10px", color: "#2c3e50" },
   cardDesc: { fontSize: "0.9rem", color: "#666", fontFamily: "'Lato', sans-serif" },
-  
+
   mapFrame: {
     border: "10px solid #5c4033", borderRadius: "5px", padding: "5px", background: "#fff",
     boxShadow: "0 10px 30px rgba(0,0,0,0.2)", height: "400px"
