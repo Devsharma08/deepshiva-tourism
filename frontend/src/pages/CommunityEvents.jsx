@@ -120,52 +120,59 @@ function CommunityEvents() {
     };
   }, []);
 
-  const events = [
-    {
-      id: 1,
-      title: "India Travel Mart (Varanasi)",
-      img: "https://images.pexels.com/photos/31072582/pexels-photo-31072582.jpeg",
-      start: { month: "Oct", day: "31" },
-      end: { month: "Nov", day: "1" },
-    },
-    {
-      id: 2,
-      title: "India International Travel Mart Pune",
-      img: "https://images.pexels.com/photos/28288482/pexels-photo-28288482.jpeg",
-      start: { month: "Nov", day: "27" },
-      end: { month: "Nov", day: "29" },
-    },
-    {
-      id: 3,
-      title: "Outbound Travel Roadshow Delhi (OTR)",
-      img: "https://images.pexels.com/photos/789750/pexels-photo-789750.jpeg",
-      start: { month: "Jan", day: "12" },
-      end: { month: "Jan", day: "17" },
-    },
-    {
-      id: 4,
-      title: "Holiday Expo-Coimbatore",
-      img: "https://images.pexels.com/photos/1122408/pexels-photo-1122408.jpeg",
-      start: { month: "Jan", day: "23" },
-      end: { month: "Jan", day: "24" },
-    },
-    {
-      id: 5,
-      title: "Bharat Global Cultural Expo (BGCE)",
-      img: "https://images.pexels.com/photos/2387871/pexels-photo-2387871.jpeg",
-      start: { month: "Feb", day: "4" },
-      end: { month: "Feb", day: "8" },
-    },
-    {
-      id: 6,
-      title: "South Asia's Travel & Tourism Exchange (SATTE)",
-      img: "https://images.pexels.com/photos/3287165/pexels-photo-3287165.jpeg",
-      start: { month: "Feb", day: "25" },
-      end: { month: "Feb", day: "27" },
-    },
-  ];
+  // Events state - now fetched from API
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch events from API
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('http://localhost:5000/api/events?limit=15');
+        const data = await res.json();
+
+        // Transform API data to match card format
+        const transformedEvents = (data.events || []).map((event, index) => {
+          const startDate = new Date(event.date);
+          const endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + (event.duration?.includes('day') ? parseInt(event.duration) : 1));
+
+          return {
+            id: event.id || index + 1,
+            title: event.title,
+            img: event.image,
+            category: event.category,
+            city: event.city,
+            venue: event.venue,
+            price: event.price,
+            isFree: event.isFree,
+            start: {
+              month: startDate.toLocaleString('en', { month: 'short' }),
+              day: startDate.getDate().toString()
+            },
+            end: {
+              month: endDate.toLocaleString('en', { month: 'short' }),
+              day: endDate.getDate().toString()
+            }
+          };
+        });
+
+        setEvents(transformedEvents);
+      } catch (error) {
+        console.error('Failed to fetch events:', error);
+        // Fallback to empty array on error
+        setEvents([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, []);
 
   const [page, setPage] = useState(0);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const perPage = 3;
   const textRef = useRef(null);
 
@@ -209,7 +216,7 @@ function CommunityEvents() {
   }, []);
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 via-amber-50/30 to-orange-50/20 py-20 px-8">
+    <div className="w-full min-h-screen bg-transparent py-20 px-8">
       {/* Top bar */}
       <div className="flex items-center mb-12 max-w-7xl mx-auto">
         <div className="flex items-center bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-amber-100">
@@ -235,14 +242,6 @@ function CommunityEvents() {
           </p>
         </div>
 
-        <div className="flex items-center bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group">
-          <button className="text-amber-900 py-4 px-6 text-sm uppercase font-bold hover:bg-amber-50 transition-colors duration-200">
-            See All Events
-          </button>
-          <button className="bg-gradient-to-r from-amber-700 to-amber-800 text-white p-4 hover:from-amber-800 hover:to-amber-900 transition-all duration-200 group-hover:scale-105">
-            <TfiArrowTopRight className="w-4 h-4" />
-          </button>
-        </div>
       </div>
 
       {/* Events Grid */}
@@ -302,7 +301,8 @@ function CommunityEvents() {
           {events.slice(page * perPage, page * perPage + perPage).map((event, index) => (
             <div
               key={event.id}
-              className="relative rounded-3xl overflow-hidden shadow-xl group bg-white hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2"
+              onClick={() => setSelectedEvent(event)}
+              className="relative rounded-3xl overflow-hidden shadow-xl group bg-white hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 cursor-pointer"
               style={{ animationDelay: `${index * 100}ms` }}
             >
               {/* Event Image */}
@@ -311,26 +311,25 @@ function CommunityEvents() {
                   src={event.img}
                   alt={event.title}
                   className="w-full h-80 object-cover transform transition-all duration-700 group-hover:scale-110 group-hover:brightness-110"
+                  onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80'; }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </div>
 
               {/* Dates */}
               <div className="absolute top-6 right-6 bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-lg flex items-center space-x-3 text-gray-800 border border-white/20">
-                {/* Start */}
                 <div className="text-center">
                   <div className="text-xs uppercase font-bold text-amber-700 tracking-wider">
-                    {event.start.month}
+                    {event.start?.month}
                   </div>
-                  <div className="text-xl font-black text-gray-900">{event.start.day}</div>
+                  <div className="text-xl font-black text-gray-900">{event.start?.day}</div>
                 </div>
                 <div className="w-px h-8 bg-gradient-to-b from-amber-200 to-amber-400"></div>
-                {/* End */}
                 <div className="text-center">
                   <div className="text-xs uppercase font-bold text-amber-700 tracking-wider">
-                    {event.end.month}
+                    {event.end?.month}
                   </div>
-                  <div className="text-xl font-black text-gray-900">{event.end.day}</div>
+                  <div className="text-xl font-black text-gray-900">{event.end?.day}</div>
                 </div>
               </div>
 
@@ -339,15 +338,31 @@ function CommunityEvents() {
                 <div className="bg-white/95 backdrop-blur-md px-6 py-4 flex items-center justify-between rounded-2xl shadow-lg border border-white/20 group-hover:bg-white transition-all duration-300">
                   <div className="flex-1">
                     <div className="text-xs uppercase font-bold text-amber-700 tracking-wider mb-1">
-                      Event
+                      {event.category || 'Event'}
                     </div>
-                    <h3 className="text-gray-900 font-black text-lg uppercase leading-tight tracking-wide">
+                    <h3 className="text-gray-900 font-black text-lg uppercase leading-tight tracking-wide line-clamp-1">
                       {event.title}
                     </h3>
                   </div>
-                  <button className="bg-gradient-to-r from-amber-700 to-amber-800 text-white p-3 rounded-xl shadow-lg hover:from-amber-800 hover:to-amber-900 transition-all duration-200 transform hover:scale-110 hover:rotate-12 ml-4">
-                    <TfiArrowTopRight className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2 ml-4">
+                    {event.url && (
+                      <a
+                        href={event.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-gray-100 text-gray-600 p-3 rounded-xl shadow hover:bg-gray-200 transition-all duration-200 transform hover:scale-110"
+                        title="Open Source"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    )}
+                    <button className="bg-gradient-to-r from-amber-700 to-amber-800 text-white p-3 rounded-xl shadow-lg hover:from-amber-800 hover:to-amber-900 transition-all duration-200 transform hover:scale-110 hover:rotate-12">
+                      <TfiArrowTopRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -380,6 +395,122 @@ function CommunityEvents() {
           </button>
         </div>
       </div>
+
+      {/* Event Detail Modal */}
+      {selectedEvent && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedEvent(null)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl transform animate-[scaleIn_0.3s_ease-out]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Image Header */}
+            <div className="relative h-64 overflow-hidden">
+              <img
+                src={selectedEvent.img}
+                alt={selectedEvent.title}
+                className="w-full h-full object-cover"
+                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80'; }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+
+              {/* Close Button */}
+              <button
+                onClick={() => setSelectedEvent(null)}
+                className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-white transition-all hover:scale-110"
+              >
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* Category Badge */}
+              {selectedEvent.category && (
+                <div className="absolute top-4 left-4 bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-full uppercase tracking-wide">
+                  {selectedEvent.category}
+                </div>
+              )}
+
+              {/* Date Badge */}
+              <div className="absolute bottom-4 right-4 bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-lg flex items-center space-x-3">
+                <div className="text-center">
+                  <div className="text-xs uppercase font-bold text-amber-700">{selectedEvent.start?.month}</div>
+                  <div className="text-xl font-black text-gray-900">{selectedEvent.start?.day}</div>
+                </div>
+                <div className="w-px h-8 bg-amber-300"></div>
+                <div className="text-center">
+                  <div className="text-xs uppercase font-bold text-amber-700">{selectedEvent.end?.month}</div>
+                  <div className="text-xl font-black text-gray-900">{selectedEvent.end?.day}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-8">
+              <h2 className="text-2xl font-black text-gray-900 mb-4 uppercase tracking-wide">
+                {selectedEvent.title}
+              </h2>
+
+              {/* Event Details */}
+              <div className="space-y-4 mb-6">
+                {selectedEvent.city && (
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                      <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400 uppercase tracking-wide">Location</div>
+                      <div className="font-semibold text-gray-900">{selectedEvent.city}{selectedEvent.venue && ` • ${selectedEvent.venue}`}</div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 text-gray-600">
+                  <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide">Price</div>
+                    <div className={`font-bold text-lg ${selectedEvent.isFree ? 'text-green-600' : 'text-gray-900'}`}>
+                      {selectedEvent.isFree ? 'Free Entry' : `₹${selectedEvent.price}`}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-4">
+                {selectedEvent.url && (
+                  <a
+                    href={selectedEvent.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white py-4 rounded-xl font-bold text-center hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                  >
+                    <span>Visit Event Page</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                )}
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="px-8 py-4 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Uttarakhand Tourism Text Section */}
       <div className="relative py-32 overflow-hidden">

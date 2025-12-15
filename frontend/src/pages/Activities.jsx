@@ -50,96 +50,17 @@ function Activities() {
     }
   }
 
-  // Data for each menu section
-  const cardsData = {
-    adventure: [
-      {
-        title: "Mountain Trek",
-        subtitle: "Explore rugged paths",
-        img: "https://images.pexels.com/photos/8659357/pexels-photo-8659357.jpeg",
-      },
-      {
-        title: "Rock Climbing",
-        subtitle: "Reach new heights",
-        img: "https://images.pexels.com/photos/2847362/pexels-photo-2847362.jpeg",
-      },
-      {
-        title: "Safari Ride",
-        subtitle: "Wildlife adventures",
-        img: "https://images.pexels.com/photos/11536788/pexels-photo-11536788.jpeg",
-      },
-    ],
-    water: [
-      {
-        title: "Scuba Diving",
-        subtitle: "Underwater wonders",
-        img: "https://images.pexels.com/photos/4666754/pexels-photo-4666754.jpeg",
-      },
-      {
-        title: "Kayaking",
-        subtitle: "Calm waters & fun",
-        img: "https://images.pexels.com/photos/2749500/pexels-photo-2749500.jpeg",
-      },
-      {
-        title: "Surfing",
-        subtitle: "Ride the waves",
-        img: "https://images.pexels.com/photos/1572062/pexels-photo-1572062.jpeg",
-      },
-    ],
-    wellness: [
-      {
-        title: "Yoga Retreat",
-        subtitle: "Balance mind & body",
-        img: "https://images.pexels.com/photos/6698535/pexels-photo-6698535.jpeg",
-      },
-      {
-        title: "Spa Therapy",
-        subtitle: "Relax & recharge",
-        img: "https://images.pexels.com/photos/8844585/pexels-photo-8844585.jpeg",
-      },
-      {
-        title: "Prayer",
-        subtitle: "Embrace the Divine Embrace",
-        img: "https://images.pexels.com/photos/57901/pexels-photo-57901.jpeg",
-      },
-    ],
-    food: [
-      {
-        title: "Street Food",
-        subtitle: "Taste the culture",
-        img: "https://images.pexels.com/photos/34415704/pexels-photo-34415704.jpeg",
-      },
-      {
-        title: "Fine Dining",
-        subtitle: "Luxury experience",
-        img: "https://images.pexels.com/photos/20381648/pexels-photo-20381648.jpeg",
-      },
-      {
-        title: "Local Markets",
-        subtitle: "Local Flavors, Familiar Faces",
-        img: "https://images.pexels.com/photos/27849689/pexels-photo-27849689.jpeg",
-      },
-    ],
-    camping: [
-      {
-        title: "Forest Camp",
-        subtitle: "Stay under stars",
-        img: "https://images.pexels.com/photos/34360246/pexels-photo-34360246.jpeg",
-      },
-      {
-        title: "Lakeside Camp",
-        subtitle: "Peaceful nights",
-        img: "https://images.pexels.com/photos/6271725/pexels-photo-6271725.jpeg",
-      },
-      {
-        title: "Fishing",
-        subtitle: "Reel in the joy of fishing",
-        img: "https://images.pexels.com/photos/988622/pexels-photo-988622.jpeg",
-      },
-    ],
-  };
+  // Data is now fetched from API via useEffect
 
   const [active, setActive] = useState("adventure");
+  const [cardsData, setCardsData] = useState({
+    adventure: [],
+    water: [],
+    wellness: [],
+    food: [],
+    camping: []
+  });
+  const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
   const [headingVisible, setHeadingVisible] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -149,12 +70,48 @@ function Activities() {
   const [progressKey, setProgressKey] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [nextActive, setNextActive] = useState(null);
+  const [showMore, setShowMore] = useState(false);
 
   const sectionRef = useRef(null);
   const headingRef = useRef(null);
   const menuRef = useRef(null);
   const cardsRef = useRef(null);
   const autoScrollRef = useRef(null);
+
+  // Fetch activities from API
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        setLoading(true);
+        const categories = ['adventure', 'water', 'wellness', 'food', 'camping'];
+        const newCardsData = {};
+
+        for (const category of categories) {
+          const res = await fetch(`http://localhost:5000/api/activities?category=${category}&limit=6`);
+          const data = await res.json();
+
+          // Transform API data to match card format
+          newCardsData[category] = (data.activities || []).map(activity => ({
+            title: activity.title,
+            subtitle: activity.subtitle,
+            img: activity.img,
+            price: activity.price,
+            duration: activity.duration,
+            location: activity.location?.city,
+            rating: activity.rating
+          }));
+        }
+
+        setCardsData(newCardsData);
+      } catch (error) {
+        console.error('Failed to fetch activities:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActivities();
+  }, []);
 
   // Auto-scroll functionality
   useEffect(() => {
@@ -189,7 +146,7 @@ function Activities() {
 
           return nextActiveId;
         });
-      }, 4000); // Change every 4 seconds
+      }, 8000); // Change every 8 seconds (slower for better viewing)
     };
 
     // Start auto-scroll after initial animations complete
@@ -287,7 +244,7 @@ function Activities() {
   return (
     <div
       ref={sectionRef}
-      className={`min-h-screen w-full bg-gradient-to-br from-slate-50 via-white to-orange-50 transition-all duration-1000 relative overflow-hidden ${isVisible ? 'opacity-100' : 'opacity-0'
+      className={`min-h-screen w-full bg-gradient-to-br from-white via-slate-50/50 to-white transition-all duration-1000 relative overflow-hidden ${isVisible ? 'opacity-100' : 'opacity-0'
         }`}
     >
       {/* Flowing Orbs from Top-Right to Bottom-Left */}
@@ -489,7 +446,7 @@ function Activities() {
                 key={progressKey}
                 className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"
                 style={{
-                  animation: 'autoScrollProgress 4s linear forwards'
+                  animation: 'autoScrollProgress 8s linear forwards'
                 }}
               ></div>
             </div>
@@ -527,23 +484,21 @@ function Activities() {
           {/* Current cards */}
           <div
             className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 w-full transition-all duration-600 ease-in-out ${isTransitioning
-                ? 'animate-[slideOutLeft_0.6s_ease-in-out_forwards]'
-                : 'transform translate-x-0'
+              ? 'animate-[slideOutLeft_0.6s_ease-in-out_forwards]'
+              : 'transform translate-x-0'
               }`}
           >
-            {cardsData[active].map((card, i) => (
+            {cardsData[active].slice(0, 3).map((card, i) => (
               <div
                 key={`${active}-${i}`}
-                className={`relative w-full max-w-sm mx-auto h-[480px] rounded-2xl overflow-hidden shadow-2xl group cursor-pointer transform transition-all duration-700 hover:scale-105 hover:-rotate-1 ${cardsVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-12 opacity-0 scale-95'
-                  }`}
-                style={{
-                  transitionDelay: cardsVisible ? `${i * 200}ms` : '0ms'
-                }}
+                className={`relative w-full max-w-sm mx-auto h-[420px] rounded-2xl overflow-hidden shadow-2xl group cursor-pointer transform transition-all duration-700 hover:scale-105 hover:-rotate-1 ${cardsVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-12 opacity-0 scale-95'}`}
+                style={{ transitionDelay: cardsVisible ? `${i * 200}ms` : '0ms' }}
               >
                 <img
                   src={card.img}
                   alt={card.title}
                   className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-110"
+                  onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80'; }}
                 />
 
                 {/* Gradient overlay */}
@@ -587,10 +542,10 @@ function Activities() {
             <div
               className="absolute top-0 left-0 w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 animate-[slideInRight_0.6s_ease-in-out_forwards]"
             >
-              {cardsData[nextActive].map((card, i) => (
+              {cardsData[nextActive].slice(0, 3).map((card, i) => (
                 <div
                   key={`${nextActive}-${i}`}
-                  className="relative w-full max-w-sm mx-auto h-[480px] rounded-2xl overflow-hidden shadow-2xl group cursor-pointer transform transition-all duration-700 hover:scale-105 hover:-rotate-1 translate-y-0 opacity-100 scale-100"
+                  className="relative w-full max-w-sm mx-auto h-[420px] rounded-2xl overflow-hidden shadow-2xl group cursor-pointer transform transition-all duration-700 hover:scale-105 hover:-rotate-1 translate-y-0 opacity-100 scale-100"
                 >
                   <img
                     src={card.img}

@@ -764,6 +764,128 @@ app.get('/api/flights/search', async (req, res) => {
 });
 
 
+// --- API: ACTIVITIES (Using Mock Data) ---
+const { getAllActivities, getActivitiesByCategory, getActivitiesByRegion, searchActivities, ACTIVITY_CATEGORIES } = require('./mockActivitiesData');
+
+app.get('/api/activities', async (req, res) => {
+    try {
+        const { category, region, search, limit = 20 } = req.query;
+
+        console.log(`🎯 Activities search: category=${category}, region=${region}, search=${search}`);
+
+        let activities;
+
+        if (search) {
+            activities = searchActivities(search, category);
+        } else if (category && region) {
+            activities = getActivitiesByCategory(category).filter(a =>
+                a.location.state.toLowerCase().includes(region.toLowerCase()) ||
+                a.location.city.toLowerCase().includes(region.toLowerCase())
+            );
+        } else if (category) {
+            activities = getActivitiesByCategory(category);
+        } else if (region) {
+            activities = getActivitiesByRegion(region);
+        } else {
+            activities = getAllActivities();
+        }
+
+        console.log(`✅ Found ${activities.length} activities`);
+
+        res.json({
+            activities: activities.slice(0, parseInt(limit)),
+            categories: ACTIVITY_CATEGORIES,
+            count: activities.length
+        });
+    } catch (error) {
+        console.error('❌ Activities API Error:', error.message);
+        res.json({ activities: [], error: error.message });
+    }
+});
+
+app.get('/api/activities/categories', (req, res) => {
+    res.json({ categories: ACTIVITY_CATEGORIES });
+});
+
+
+// --- API: COMMUNITY EVENTS (Eventbrite API with Mock Fallback) ---
+const { searchEvents, getEventCategories, getCitiesWithEvents } = require('./mockEventsData');
+const EVENTBRITE_TOKEN = process.env.EVENTBRITE_TOKEN;
+
+app.get('/api/events', async (req, res) => {
+    try {
+        const { city, category, search, limit = 20 } = req.query;
+
+        console.log(`📅 Events search: city=${city}, category=${category}, search=${search}`);
+
+        // Try Eventbrite API first
+        if (EVENTBRITE_TOKEN) {
+            try {
+                const searchQuery = search || city || 'travel India';
+                const eventbriteUrl = `https://www.eventbriteapi.com/v3/events/search/?q=${encodeURIComponent(searchQuery)}&location.address=India&expand=venue,category&page_size=${limit}`;
+
+                const eventbriteRes = await axios.get(eventbriteUrl, {
+                    headers: { 'Authorization': `Bearer ${EVENTBRITE_TOKEN}` },
+                    timeout: 8000
+                });
+
+                if (eventbriteRes.data.events && eventbriteRes.data.events.length > 0) {
+                    const events = eventbriteRes.data.events.map(event => ({
+                        id: event.id,
+                        title: event.name?.text || 'Untitled Event',
+                        subtitle: event.summary || event.description?.text?.substring(0, 100) || '',
+                        description: event.description?.text || '',
+                        image: event.logo?.url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80',
+                        category: event.category?.name || 'Event',
+                        city: event.venue?.address?.city || city || 'India',
+                        venue: event.venue?.name || 'TBA',
+                        date: event.start?.local?.split('T')[0] || new Date().toISOString().split('T')[0],
+                        time: event.start?.local?.split('T')[1]?.substring(0, 5) || '10:00',
+                        price: event.is_free ? 0 : 500,
+                        isFree: event.is_free || false,
+                        url: event.url,
+                        organizer: event.organizer?.name || 'Organizer'
+                    }));
+
+                    console.log(`✅ Found ${events.length} events from Eventbrite`);
+                    return res.json({
+                        events,
+                        source: 'eventbrite',
+                        categories: getEventCategories(),
+                        cities: getCitiesWithEvents(),
+                        count: events.length
+                    });
+                }
+            } catch (eventbriteError) {
+                console.log(`⚠️ Eventbrite API failed, using mock data:`, eventbriteError.message);
+            }
+        }
+
+        // Fallback to mock data
+        let events = searchEvents(search, city, category);
+        console.log(`✅ Found ${events.length} events from mock data`);
+
+        res.json({
+            events: events.slice(0, parseInt(limit)),
+            source: 'mock',
+            categories: getEventCategories(),
+            cities: getCitiesWithEvents(),
+            count: events.length
+        });
+    } catch (error) {
+        console.error('❌ Events API Error:', error.message);
+        res.json({ events: [], error: error.message });
+    }
+});
+
+app.get('/api/events/categories', (req, res) => {
+    res.json({
+        categories: getEventCategories(),
+        cities: getCitiesWithEvents()
+    });
+});
+
+
 // --- API 2: HOTEL SEARCH (Overpass API with Mock Fallback) ---
 const { generateHotels, searchHotelCities } = require('./mockHotelData');
 

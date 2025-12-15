@@ -53,7 +53,7 @@ export default function FeedbackSection() {
   return (
     <div className="w-full">
       {/* Feedback Section */}
-      <section className="bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 py-20 px-6">
+      <section className="bg-gradient-to-br from-white via-gray-50 to-white py-20 px-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="text-center mb-16">
@@ -122,8 +122,8 @@ export default function FeedbackSection() {
                   key={index}
                   onClick={() => setActiveTestimonial(index)}
                   className={`w-3 h-3 rounded-full transition-all duration-300 ${index === activeTestimonial
-                      ? 'bg-amber-600 scale-125'
-                      : 'bg-gray-300 hover:bg-gray-400'
+                    ? 'bg-amber-600 scale-125'
+                    : 'bg-gray-300 hover:bg-gray-400'
                     }`}
                 />
               ))}

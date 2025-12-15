@@ -391,18 +391,40 @@ function Home() {
       </section>
 
 
-      {/* travel destination */}
-      <section className="min-h-screen w-full">
+      {/* travel destination (WARMER - ORANGE THEME) */}
+      <section className="min-h-screen w-full relative">
+        {/* Top blend from white info section to orange travel section */}
+        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white via-orange-50/50 to-transparent z-10 pointer-events-none" />
         <TravelDestination />
       </section>
-      {/* all activities section  */}
-      <section className="min-h-screen w-full">
+
+      {/* Transition: TravelDestination (Orange) → Activities (White) */}
+      <div className="relative h-24 bg-gradient-to-b from-orange-50 via-orange-50/50 to-white overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-100/30 to-transparent" />
+      </div>
+
+      {/* all activities section (LIGHTER - WHITE THEME) */}
+      <section className="min-h-screen w-full relative">
         <Activities />
+        {/* Bottom blend to CommunityEvents (Orange) */}
+        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-transparent via-white/50 to-transparent pointer-events-none" />
       </section>
-      {/* community and events */}
-      <section className="min-h-screen w-full">
+
+      {/* Transition: Activities (White) → CommunityEvents (Orange) */}
+      <div className="relative h-24 bg-gradient-to-b from-white via-orange-50/50 to-orange-50 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-100/10 via-orange-100/20 to-amber-100/10" />
+      </div>
+
+      {/* community and events (WARMER - ORANGE THEME) */}
+      <section className="min-h-screen w-full relative bg-gradient-to-b from-orange-50 via-amber-50 to-orange-50">
         <CommunityEvents />
       </section>
+
+      {/* Transition: CommunityEvents (Orange) → Collage (White) */}
+      <div className="relative h-24 bg-gradient-to-b from-orange-50 via-orange-50/50 to-white overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-yellow-50/30 via-amber-100/40 to-yellow-50/30" />
+      </div>
+
       <section className="min-h-screen w-full">
         <Collage />
       </section>

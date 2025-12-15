@@ -249,14 +249,14 @@ function TravelDestination() {
       >
         {/* Light Background Theme */}
         <div className="absolute inset-0 overflow-hidden">
-          {/* Base gradient - light white/cream theme */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white via-orange-50/30 to-amber-50/40" />
+          {/* Base gradient - Warm Alternate Theme */}
+          <div className="absolute inset-0 bg-gradient-to-b from-orange-50 via-amber-50 to-orange-50" />
 
           {/* Secondary gradient overlay for depth */}
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-100/20 via-white to-amber-100/30" />
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-100/40 via-transparent to-amber-100/40" />
 
           {/* Soft glow at top for seamless blend */}
-          <div className="absolute top-0 left-0 right-0 h-60 bg-gradient-to-b from-white via-white to-transparent" />
+          <div className="absolute top-0 left-0 right-0 h-60 bg-gradient-to-b from-orange-50 via-orange-50/50 to-transparent" />
 
           {/* Animated ambient orbs with light orange/amber theme */}
           <div className="absolute top-0 left-0 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
