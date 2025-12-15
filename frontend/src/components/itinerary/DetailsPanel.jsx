@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getPlaceholderImage } from '../../utils/wikimediaService';
 
 function DetailsPanel({
     destination,
@@ -97,7 +98,7 @@ function DetailsPanel({
                         alt={destination.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400';
+                            e.target.src = getPlaceholderImage(destination.name || 'Destination');
                         }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
