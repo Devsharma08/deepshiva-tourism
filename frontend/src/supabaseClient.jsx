@@ -162,30 +162,44 @@ export async function getCurrentUser() {
 }
 
 /**
- * Check if user has completed onboarding (with timeout)
+ * Check if user has completed onboarding (with timeout and error handling)
  */
 export async function hasCompletedOnboarding(userId) {
+  if (!userId) return false;
+
   try {
     const checkPromise = supabase
       .from('user_preferences')
       .select('user_id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle(); // Use maybeSingle to avoid error when no row exists
 
-    const { data, error } = await Promise.race([
+    const result = await Promise.race([
       checkPromise,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 2000)
+        setTimeout(() => reject(new Error('timeout')), 3000)
       )
     ]);
 
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error checking onboarding status:', error);
+    // Handle various error cases gracefully
+    if (result.error) {
+      // PGRST116 = no rows found (expected for new users)
+      // 406 = Not Acceptable (likely RLS issue)
+      if (result.error.code === 'PGRST116' || result.error.code === '406') {
+        return false;
+      }
+      console.warn('⚠️ hasCompletedOnboarding error:', result.error.message);
+      return false;
     }
 
-    return !!data;
+    return !!result.data;
   } catch (err) {
-    console.warn('⚠️ hasCompletedOnboarding timed out, assuming false');
+    // Handle timeout and network errors
+    if (err.message === 'timeout') {
+      console.warn('⚠️ hasCompletedOnboarding timed out, assuming false');
+    } else {
+      console.warn('⚠️ hasCompletedOnboarding failed:', err.message);
+    }
     return false;
   }
 }
@@ -245,19 +259,32 @@ export async function saveUserPreferences(userId, preferences) {
 }
 
 /**
- * Get user preferences
+ * Get user preferences (with error handling)
  */
 export async function getUserPreferences(userId) {
-  const { data, error } = await supabase
-    .from('user_preferences')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
+  if (!userId) return null;
 
-  if (error && error.code !== 'PGRST116') {
-    throw error
+  try {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle(); // Use maybeSingle to avoid error when no row exists
+
+    // Handle errors gracefully
+    if (error) {
+      // PGRST116 = no rows found (expected for new users)
+      // Ignore 406 errors (RLS issues)
+      if (error.code !== 'PGRST116' && error.code !== '406') {
+        console.warn('⚠️ getUserPreferences error:', error.message);
+      }
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.warn('⚠️ getUserPreferences failed:', err.message);
+    return null;
   }
-
-  return data
 }
 

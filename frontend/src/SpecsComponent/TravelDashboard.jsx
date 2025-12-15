@@ -6,86 +6,367 @@ import {
     Calendar, Users, Sparkles, ArrowRight, Clock,
     Wifi, Coffee, Car, Waves, Dumbbell, Wind,
     ChevronLeft, Heart, Share2, X, CheckCircle,
-    TrendingUp, Award, Globe, Palmtree
+    TrendingUp, Award, Globe, Palmtree, CreditCard,
+    Phone, Mail, User, Check
 } from 'lucide-react';
 import { MapComponent } from './MapComponent';
+import { cachedFetch } from '../utils/ContextManager';
 
 // ==========================================
-// AUTOINPUT COMPONENT - Enhanced with Indian Theme
+// BOOKING MODAL COMPONENT
+// ==========================================
+const BookingModal = ({ isOpen, onClose, item, type }) => {
+    const [step, setStep] = useState(1); // 1=details, 2=payment, 3=success
+    const [formData, setFormData] = useState({
+        fullName: '',
+        email: '',
+        phone: '',
+        paymentMethod: 'upi'
+    });
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    if (!isOpen || !item) return null;
+
+    const handleInputChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (step === 1) {
+            setStep(2);
+        } else if (step === 2) {
+            setIsProcessing(true);
+            // Simulate payment processing
+            setTimeout(() => {
+                setIsProcessing(false);
+                setStep(3);
+            }, 2000);
+        }
+    };
+
+    const handleClose = () => {
+        setStep(1);
+        setFormData({ fullName: '', email: '', phone: '', paymentMethod: 'upi' });
+        onClose();
+    };
+
+    const isHotel = type === 'hotel';
+    const primaryColor = isHotel ? 'orange' : 'blue';
+    const price = isHotel ? item.price : item.totalPrice;
+
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
+
+            {/* Modal */}
+            <div className="relative w-full max-w-lg mx-4 bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                {/* Header */}
+                <div className={`p-6 bg-gradient-to-r ${isHotel ? 'from-orange-500 to-amber-500' : 'from-blue-500 to-indigo-600'}`}>
+                    <button onClick={handleClose} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30">
+                        <X className="w-5 h-5" />
+                    </button>
+                    <h2 className="text-2xl font-bold text-white">
+                        {step === 3 ? 'Booking Confirmed!' : `Book ${isHotel ? item.name : `Flight ${item.flightNumber}`}`}
+                    </h2>
+                    <p className="text-white/80 mt-1">
+                        {step === 1 && 'Enter traveler details'}
+                        {step === 2 && 'Select payment method'}
+                        {step === 3 && 'Your booking is confirmed'}
+                    </p>
+                </div>
+
+                {/* Progress Steps */}
+                {step < 3 && (
+                    <div className="flex items-center justify-center gap-2 py-4 border-b">
+                        {[1, 2].map(s => (
+                            <div key={s} className="flex items-center gap-2">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step >= s
+                                    ? `bg-${primaryColor}-500 text-white`
+                                    : 'bg-gray-100 text-gray-400'}`}>
+                                    {step > s ? <Check className="w-4 h-4" /> : s}
+                                </div>
+                                {s < 2 && <div className={`w-12 h-1 rounded ${step > s ? `bg-${primaryColor}-500` : 'bg-gray-200'}`} />}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Content */}
+                <div className="p-6">
+                    {step === 1 && (
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="text-sm font-semibold text-gray-600 block mb-2">Full Name</label>
+                                <div className="relative">
+                                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        name="fullName"
+                                        required
+                                        value={formData.fullName}
+                                        onChange={handleInputChange}
+                                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-400 outline-none"
+                                        placeholder="Enter your full name"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-sm font-semibold text-gray-600 block mb-2">Email Address</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        required
+                                        value={formData.email}
+                                        onChange={handleInputChange}
+                                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-400 outline-none"
+                                        placeholder="your@email.com"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-sm font-semibold text-gray-600 block mb-2">Phone Number</label>
+                                <div className="relative">
+                                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input
+                                        type="tel"
+                                        name="phone"
+                                        required
+                                        value={formData.phone}
+                                        onChange={handleInputChange}
+                                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-400 outline-none"
+                                        placeholder="+91 98765 43210"
+                                    />
+                                </div>
+                            </div>
+                            <button type="submit" className={`w-full py-4 mt-4 rounded-xl font-bold text-white bg-gradient-to-r ${isHotel ? 'from-orange-500 to-amber-500' : 'from-blue-500 to-indigo-600'} hover:scale-[1.02] transition-transform`}>
+                                Continue to Payment
+                            </button>
+                        </form>
+                    )}
+
+                    {step === 2 && (
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="bg-gray-50 p-4 rounded-xl mb-4">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">Total Amount</span>
+                                    <span className="font-bold text-xl text-gray-800">₹{price?.toLocaleString()}</span>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                {[
+                                    { id: 'upi', label: 'UPI / Google Pay / PhonePe', icon: '📱' },
+                                    { id: 'card', label: 'Credit / Debit Card', icon: '💳' },
+                                    { id: 'netbanking', label: 'Net Banking', icon: '🏦' }
+                                ].map(method => (
+                                    <label key={method.id} className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${formData.paymentMethod === method.id
+                                        ? `border-${primaryColor}-500 bg-${primaryColor}-50`
+                                        : 'border-gray-200 hover:border-gray-300'
+                                        }`}>
+                                        <input
+                                            type="radio"
+                                            name="paymentMethod"
+                                            value={method.id}
+                                            checked={formData.paymentMethod === method.id}
+                                            onChange={handleInputChange}
+                                            className="sr-only"
+                                        />
+                                        <span className="text-2xl">{method.icon}</span>
+                                        <span className="font-semibold text-gray-700">{method.label}</span>
+                                        {formData.paymentMethod === method.id && (
+                                            <CheckCircle className={`w-5 h-5 ml-auto text-${primaryColor}-500`} />
+                                        )}
+                                    </label>
+                                ))}
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={isProcessing}
+                                className={`w-full py-4 mt-4 rounded-xl font-bold text-white bg-gradient-to-r ${isHotel ? 'from-orange-500 to-amber-500' : 'from-blue-500 to-indigo-600'} hover:scale-[1.02] transition-transform disabled:opacity-70 flex items-center justify-center gap-2`}
+                            >
+                                {isProcessing ? (
+                                    <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing...</>
+                                ) : (
+                                    <>Pay ₹{price?.toLocaleString()}</>
+                                )}
+                            </button>
+                        </form>
+                    )}
+
+                    {step === 3 && (
+                        <div className="text-center py-8">
+                            <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-6 ${isHotel ? 'bg-green-100' : 'bg-green-100'}`}>
+                                <CheckCircle className="w-10 h-10 text-green-500" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-2">Booking Successful!</h3>
+                            <p className="text-gray-500 mb-6">Confirmation sent to {formData.email}</p>
+
+                            <div className="bg-gray-50 p-4 rounded-xl text-left space-y-2 mb-6">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Booking ID</span>
+                                    <span className="font-mono font-bold">#DS{Date.now().toString().slice(-8)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">{isHotel ? 'Hotel' : 'Flight'}</span>
+                                    <span className="font-semibold">{isHotel ? item.name : item.flightNumber}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Amount Paid</span>
+                                    <span className="font-bold text-green-600">₹{price?.toLocaleString()}</span>
+                                </div>
+                            </div>
+
+                            <button onClick={handleClose} className="w-full py-4 rounded-xl font-bold text-white bg-gray-800 hover:bg-gray-900">
+                                Done
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ==========================================
+// AUTOINPUT COMPONENT - Fixed Dropdown
 // ==========================================
 const AutoInput = ({ icon: Icon, placeholder, value, onChange, onSelect, type = 'city' }) => {
     const [suggestions, setSuggestions] = useState([]);
-    const [show, setShow] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const inputRef = React.useRef(null);
 
+    // Fetch suggestions when value changes
     useEffect(() => {
+        if (!value || value.length < 2 || !showDropdown) {
+            setSuggestions([]);
+            return;
+        }
+
         const timer = setTimeout(async () => {
-            if (value && value.length > 2 && show) {
-                try {
-                    const endpoint = type === 'airport' ? '/api/airports' : '/api/suggestions';
-                    const param = type === 'airport' ? 'keyword' : 'query';
-                    const res = await axios.get(`http://localhost:5000${endpoint}?${param}=${value}`);
-                    const results = type === 'airport' ? res.data.airports : res.data.suggestions;
-                    setSuggestions(Array.isArray(results) ? results : []);
-                } catch (e) {
+            setLoading(true);
+            try {
+                const endpoint = type === 'airport' ? '/api/airports' : '/api/suggestions';
+                const param = type === 'airport' ? 'keyword' : 'query';
+                const url = `http://localhost:5000${endpoint}?${param}=${encodeURIComponent(value)}`;
+
+                console.log('🔍 Fetching suggestions:', url);
+
+                const res = await axios.get(url, { timeout: 5000 });
+                const results = type === 'airport' ? res.data?.airports : res.data?.suggestions;
+
+                console.log('📋 Results:', results);
+
+                if (Array.isArray(results)) {
+                    const validResults = results.filter(item =>
+                        item && (type === 'airport' ? item.iata : item.name)
+                    );
+                    setSuggestions(validResults);
+                } else {
                     setSuggestions([]);
                 }
+            } catch (e) {
+                console.error('❌ Fetch error:', e.message);
+                setSuggestions([]);
+            } finally {
+                setLoading(false);
             }
-        }, 300);
+        }, 400);
+
         return () => clearTimeout(timer);
-    }, [value, show, type]);
+    }, [value, showDropdown, type]);
+
+    const handleSelect = (item) => {
+        const val = type === 'airport' ? item.iata : item.name;
+        onSelect(val);
+        setSuggestions([]);
+        setShowDropdown(false);
+    };
+
+    const isAirport = type === 'airport';
+    const accentColor = isAirport ? 'blue' : 'orange';
 
     return (
-        <div className="relative w-full z-50 group">
-            <div className={`relative overflow-hidden rounded-2xl transition-all duration-500 ${isFocused
-                ? 'ring-2 ring-orange-400/50 shadow-lg shadow-orange-500/10'
-                : 'ring-1 ring-white/20 hover:ring-orange-300/30'
+        <div className="relative w-full" style={{ zIndex: isFocused ? 9999 : 1 }}>
+            {/* Input Field */}
+            <div className={`relative rounded-2xl overflow-hidden transition-all duration-300 ${isFocused
+                ? `ring-2 ring-${accentColor}-400 shadow-lg`
+                : 'ring-1 ring-gray-200 hover:ring-gray-300'
                 }`}>
-                {/* Gradient background */}
-                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-xl" />
-
                 {Icon && (
-                    <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-all duration-300 ${isFocused ? 'text-orange-500 scale-110' : 'text-amber-600/60'
+                    <div className={`absolute left-4 top-1/2 -translate-y-1/2 ${isFocused ? `text-${accentColor}-500` : 'text-gray-400'
                         }`}>
                         <Icon className="h-5 w-5" />
                     </div>
                 )}
                 <input
-                    className="relative w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm font-semibold text-gray-700 placeholder:text-gray-400 outline-none"
+                    ref={inputRef}
+                    className="w-full pl-12 pr-4 py-4 bg-white font-semibold text-gray-700 placeholder:text-gray-400 outline-none"
                     placeholder={placeholder}
-                    value={value}
+                    value={value || ''}
                     onChange={(e) => {
                         onChange(e.target.value);
-                        setShow(true);
+                        setShowDropdown(true);
                     }}
-                    onFocus={() => { setShow(true); setIsFocused(true); }}
-                    onBlur={() => { setTimeout(() => setShow(false), 200); setIsFocused(false); }}
+                    onFocus={() => {
+                        setIsFocused(true);
+                        setShowDropdown(true);
+                    }}
+                    onBlur={() => {
+                        setIsFocused(false);
+                        // Delay hiding to allow click on suggestion
+                        setTimeout(() => setShowDropdown(false), 250);
+                    }}
                 />
+                {loading && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                    </div>
+                )}
             </div>
 
-            {show && suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-orange-500/10 border border-orange-100 max-h-60 overflow-y-auto z-[100] animate-in slide-in-from-top-2 duration-200">
+            {/* Dropdown - Positioned absolutely with high z-index */}
+            {showDropdown && suggestions.length > 0 && (
+                <div
+                    className="absolute left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 max-h-64 overflow-y-auto"
+                    style={{
+                        zIndex: 99999,
+                        top: '100%',
+                        position: 'absolute'
+                    }}
+                >
                     {suggestions.map((item, idx) => (
                         <div
-                            key={idx}
-                            className="p-4 hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 cursor-pointer border-b border-orange-50 last:border-0 transition-all duration-200 group"
+                            key={item.iata || item.name || idx}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors"
                             onMouseDown={(e) => {
                                 e.preventDefault();
-                                const val = type === 'airport' ? item.iata : item.name;
-                                onSelect(val);
-                                setShow(false);
+                                e.stopPropagation();
+                                handleSelect(item);
                             }}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center group-hover:from-orange-200 group-hover:to-amber-200 transition-all">
-                                    {type === 'airport' ? <Plane className="w-5 h-5 text-orange-600" /> : <MapPin className="w-5 h-5 text-orange-600" />}
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isAirport
+                                    ? 'bg-blue-100 text-blue-600'
+                                    : 'bg-orange-100 text-orange-600'
+                                    }`}>
+                                    {isAirport ? <Plane className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
                                 </div>
-                                <div>
-                                    <div className="font-bold text-gray-800 text-sm">
-                                        {type === 'airport' ? `${item.city} (${item.iata})` : item.name}
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-gray-800 text-sm truncate">
+                                        {isAirport
+                                            ? `${item.city || 'Unknown'} (${item.iata || ''})`
+                                            : item.name || 'Unknown'
+                                        }
                                     </div>
-                                    <div className="text-xs text-gray-400 truncate">
-                                        {type === 'airport' ? item.name : item.subtitle}
+                                    <div className="text-xs text-gray-500 truncate">
+                                        {isAirport ? item.name : item.subtitle || ''}
                                     </div>
                                 </div>
                             </div>
@@ -120,12 +401,12 @@ const HotelCard = ({ hotel, isSelected, onClick }) => {
                 : 'border-white/50 shadow-lg shadow-gray-200/50 bg-white hover:border-orange-200 hover:shadow-xl'
                 }`}>
 
-                {/* Image Section */}
-                <div className="relative h-44 overflow-hidden">
+                {/* Image Section - Fixed height and centering */}
+                <div className="relative h-48 overflow-hidden">
                     <img
                         src={hotel.image}
                         alt={hotel.name}
-                        className={`w-full h-full object-cover transition-all duration-700 ${isHovered ? 'scale-110' : 'scale-100'
+                        className={`w-full h-full object-cover object-center transition-all duration-700 ${isHovered ? 'scale-110' : 'scale-100'
                             }`}
                     />
                     {/* Overlay Gradient */}
@@ -191,89 +472,132 @@ const HotelCard = ({ hotel, isSelected, onClick }) => {
 };
 
 // ==========================================
-// FLIGHT CARD COMPONENT - Premium Design
+// FLIGHT CARD COMPONENT - Premium Design with Images
 // ==========================================
+
+// City to Unsplash image mapping for unique card backgrounds
+const CITY_IMAGES = {
+    'DEL': 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=800&q=80', // Delhi
+    'BOM': 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=800&q=80', // Mumbai
+    'BLR': 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=800&q=80', // Bangalore
+    'MAA': 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=800&q=80', // Chennai
+    'CCU': 'https://images.unsplash.com/photo-1558431382-27e303142255?w=800&q=80', // Kolkata
+    'HYD': 'https://images.unsplash.com/photo-1572445271230-a78d4d184ab6?w=800&q=80', // Hyderabad
+    'GOI': 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=800&q=80', // Goa
+    'JAI': 'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=800&q=80', // Jaipur
+    'AMD': 'https://images.unsplash.com/photo-1609766934950-329a0e89bd0d?w=800&q=80', // Ahmedabad
+    'COK': 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=800&q=80', // Kochi
+    'VNS': 'https://images.unsplash.com/photo-1561361513-2d000a50f0dc?w=800&q=80', // Varanasi
+    'UDR': 'https://images.unsplash.com/photo-1599661046289-e31897846e41?w=800&q=80', // Udaipur
+    'SXR': 'https://images.unsplash.com/photo-1597074866923-dc0589150358?w=800&q=80', // Srinagar
+    'PNQ': 'https://images.unsplash.com/photo-1580477371194-4a7d48e10d0b?w=800&q=80', // Pune
+    'DEFAULT': 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80' // Airplane
+};
+
 const FlightCard = ({ flight, isSelected, onClick }) => {
     const [isHovered, setIsHovered] = useState(false);
+
+    // Get image based on destination city
+    const destCode = flight.arrival?.iataCode || 'DEFAULT';
+    const cardImage = CITY_IMAGES[destCode] || CITY_IMAGES['DEFAULT'];
+
+    // Format time for display
+    const formatTime = (isoString) => {
+        if (!isoString) return '--:--';
+        return isoString.split('T')[1]?.slice(0, 5) || '--:--';
+    };
 
     return (
         <div
             onClick={onClick}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            className={`relative group cursor-pointer transition-all duration-500 ${isSelected ? 'scale-[1.02]' : 'hover:scale-[1.01]'
-                }`}
+            className={`relative group cursor-pointer transition-all duration-500 ${isSelected ? 'scale-[1.02]' : 'hover:scale-[1.01]'}`}
         >
-            <div className={`relative overflow-hidden rounded-3xl border-2 p-6 transition-all duration-500 ${isSelected
-                ? 'border-blue-400 shadow-2xl shadow-blue-500/20 bg-gradient-to-br from-blue-50 to-indigo-50'
-                : 'border-white/50 shadow-lg shadow-gray-200/50 bg-white hover:border-blue-200 hover:shadow-xl'
+            <div className={`relative overflow-hidden rounded-3xl border-2 transition-all duration-500 ${isSelected
+                ? 'border-blue-400 shadow-2xl shadow-blue-500/20'
+                : 'border-white/50 shadow-lg shadow-gray-200/50 hover:border-blue-200 hover:shadow-xl'
                 }`}>
 
-                {/* Airline & Duration Header */}
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                            <Plane className="w-6 h-6 text-white" />
+                {/* Destination Image Header */}
+                <div className="relative h-32 overflow-hidden">
+                    <img
+                        src={cardImage}
+                        alt={destCode}
+                        className={`w-full h-full object-cover transition-transform duration-700 ${isHovered ? 'scale-110' : 'scale-100'}`}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+
+                    {/* Airline Badge */}
+                    <div className="absolute top-3 left-3 flex items-center gap-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                            <Plane className="w-3 h-3 text-white" />
                         </div>
-                        <div>
-                            <div className="font-bold text-gray-800">{flight.airline}</div>
-                            <div className="text-xs text-gray-400">{flight.flightNumber || 'Direct Flight'}</div>
-                        </div>
+                        <span className="font-bold text-sm text-gray-800">{flight.airline}</span>
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-full border border-green-200">
+
+                    {/* Flight Number Badge */}
+                    <div className="absolute top-3 right-3 bg-black/40 backdrop-blur-sm px-2 py-1 rounded-lg">
+                        <span className="text-xs font-bold text-white">{flight.flightNumber}</span>
+                    </div>
+
+                    {/* Duration Badge */}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg">
                         <Clock className="w-4 h-4 text-green-600" />
                         <span className="text-sm font-bold text-green-700">{flight.duration}</span>
                     </div>
                 </div>
 
-                {/* Route Visualization */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="text-center">
-                        <div className="text-3xl font-black text-gray-800">{flight.departure?.iataCode}</div>
-                        <div className="text-sm font-bold text-gray-500">
-                            {flight.departure?.at?.split('T')[1]?.slice(0, 5)}
+                {/* Route Details */}
+                <div className="p-5 bg-white">
+                    {/* Time and Airport Row */}
+                    <div className="flex items-center justify-between mb-4">
+                        {/* Departure */}
+                        <div className="text-left">
+                            <div className="text-2xl font-black text-gray-800">{formatTime(flight.departure?.at)}</div>
+                            <div className="text-lg font-bold text-blue-600">{flight.departure?.iataCode}</div>
+                        </div>
+
+                        {/* Flight Path */}
+                        <div className="flex-1 mx-4 relative py-2">
+                            <div className="h-0.5 bg-gradient-to-r from-blue-300 via-blue-500 to-indigo-300 rounded-full" />
+                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-1.5 rounded-full border-2 border-blue-300 shadow">
+                                <Plane className={`w-4 h-4 text-blue-500 rotate-90 transition-transform duration-500 ${isHovered ? 'translate-x-1' : ''}`} />
+                            </div>
+                            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${flight.segments === 1 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                                    }`}>
+                                    {flight.segments === 1 ? 'Non-stop' : '1 Stop'}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Arrival */}
+                        <div className="text-right">
+                            <div className="text-2xl font-black text-gray-800">{formatTime(flight.arrival?.at)}</div>
+                            <div className="text-lg font-bold text-blue-600">{flight.arrival?.iataCode}</div>
                         </div>
                     </div>
 
-                    <div className="flex-1 mx-6 relative">
-                        <div className="h-0.5 bg-gradient-to-r from-blue-200 via-blue-400 to-indigo-200 rounded-full" />
-                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-2 rounded-full border-2 border-blue-200 shadow-md">
-                            <Plane className={`w-4 h-4 text-blue-500 rotate-90 transition-transform duration-700 ${isHovered ? 'translate-x-2' : ''}`} />
+                    {/* Footer with Amenities and Price */}
+                    <div className="flex items-end justify-between mt-6 pt-4 border-t border-gray-100">
+                        <div className="flex gap-3">
+                            {flight.mealsIncluded && (
+                                <div className="flex items-center gap-1 text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
+                                    <Coffee className="w-3.5 h-3.5" />
+                                    <span className="text-xs">Meals</span>
+                                </div>
+                            )}
+                            <div className="flex items-center gap-1 text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
+                                <Wifi className="w-3.5 h-3.5" />
+                                <span className="text-xs">WiFi</span>
+                            </div>
                         </div>
-                        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2">
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${flight.segments === 1
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-amber-100 text-amber-700'
-                                }`}>
-                                {flight.segments === 1 ? 'Non-stop' : '1 Stop'}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="text-center">
-                        <div className="text-3xl font-black text-gray-800">{flight.arrival?.iataCode}</div>
-                        <div className="text-sm font-bold text-gray-500">
-                            {flight.arrival?.at?.split('T')[1]?.slice(0, 5)}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Footer */}
-                <div className="flex items-end justify-between mt-8 pt-4 border-t border-gray-100">
-                    <div className="flex gap-4">
-                        <div className="flex items-center gap-1.5 text-gray-500">
-                            <Wifi className="w-4 h-4" />
-                            <span className="text-xs">WiFi</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-gray-500">
-                            <Coffee className="w-4 h-4" />
-                            <span className="text-xs">Meals</span>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <div className="text-xs text-gray-400 uppercase tracking-wide">Starting from</div>
-                        <div className="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                            ₹{flight.totalPrice?.toLocaleString()}
+                        <div className="text-right">
+                            <div className="text-xs text-gray-400 uppercase tracking-wide">from</div>
+                            <div className="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                                ₹{flight.totalPrice?.toLocaleString()}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -304,10 +628,20 @@ const TravelDashboard = () => {
     const [userLoc, setUserLoc] = useState(null);
     const [routeInfo, setRouteInfo] = useState(null);
 
+    // Booking Modal State
+    const [isBookingOpen, setIsBookingOpen] = useState(false);
+    const [bookingItem, setBookingItem] = useState(null);
+
     // Inputs
     const getTodayDate = () => new Date().toISOString().split('T')[0];
     const [hotelCity, setHotelCity] = useState('');
     const [flightData, setFlightData] = useState({ origin: '', destination: '', date: getTodayDate() });
+
+    // Open booking modal
+    const handleBookNow = (item) => {
+        setBookingItem(item);
+        setIsBookingOpen(true);
+    };
 
     // GPS Location
     useEffect(() => {
@@ -466,23 +800,27 @@ const TravelDashboard = () => {
                                 </>
                             ) : (
                                 <>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <AutoInput
-                                            type="airport"
-                                            icon={Plane}
-                                            placeholder="From (DEL)"
-                                            value={flightData.origin}
-                                            onChange={(val) => setFlightData({ ...flightData, origin: val })}
-                                            onSelect={(val) => setFlightData({ ...flightData, origin: val })}
-                                        />
-                                        <AutoInput
-                                            type="airport"
-                                            icon={MapPin}
-                                            placeholder="To (BOM)"
-                                            value={flightData.destination}
-                                            onChange={(val) => setFlightData({ ...flightData, destination: val })}
-                                            onSelect={(val) => setFlightData({ ...flightData, destination: val })}
-                                        />
+                                    <div className="flex flex-row gap-3 w-full">
+                                        <div className="flex-1">
+                                            <AutoInput
+                                                type="airport"
+                                                icon={Plane}
+                                                placeholder="From (DEL)"
+                                                value={flightData.origin}
+                                                onChange={(val) => setFlightData({ ...flightData, origin: val })}
+                                                onSelect={(val) => setFlightData({ ...flightData, origin: val })}
+                                            />
+                                        </div>
+                                        <div className="flex-1">
+                                            <AutoInput
+                                                type="airport"
+                                                icon={MapPin}
+                                                placeholder="To (BOM)"
+                                                value={flightData.destination}
+                                                onChange={(val) => setFlightData({ ...flightData, destination: val })}
+                                                onSelect={(val) => setFlightData({ ...flightData, destination: val })}
+                                            />
+                                        </div>
                                     </div>
                                     <div className="relative">
                                         <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-500" />
@@ -771,7 +1109,10 @@ const TravelDashboard = () => {
                                     )}
 
                                     {/* Book Now Button */}
-                                    <button className="w-full py-5 bg-gradient-to-r from-gray-900 to-gray-800 text-white font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3">
+                                    <button
+                                        onClick={() => handleBookNow(selectedItem)}
+                                        className="w-full py-5 bg-gradient-to-r from-gray-900 to-gray-800 text-white font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3"
+                                    >
                                         <ShieldCheck className="w-6 h-6" />
                                         Book Now • Secure Payment
                                     </button>
@@ -887,7 +1228,10 @@ const TravelDashboard = () => {
                                     </div>
 
                                     {/* Book Now Button */}
-                                    <button className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3">
+                                    <button
+                                        onClick={() => handleBookNow(selectedItem)}
+                                        className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3"
+                                    >
                                         <Plane className="w-6 h-6" />
                                         Book Flight • Secure Payment
                                     </button>
@@ -945,6 +1289,14 @@ const TravelDashboard = () => {
                     </div>
                 )}
             </div>
+
+            {/* Booking Modal */}
+            <BookingModal
+                isOpen={isBookingOpen}
+                onClose={() => setIsBookingOpen(false)}
+                item={bookingItem}
+                type={activeTab === 'hotels' ? 'hotel' : 'flight'}
+            />
         </div>
     );
 };

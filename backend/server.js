@@ -684,7 +684,14 @@ const cron = require('node-cron');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-app.use(cors());
+
+// CORS - Allow all origins for development
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 // --- CONFIGURATION ---
@@ -717,97 +724,105 @@ const getFakePrice = (str) => {
     return (Math.abs(hash) % 8000) + 2000;
 };
 
-// --- API 1: FLIGHT SEARCH (Strict Deduplication) ---
+// --- API 1: FLIGHT SEARCH (Using Mock Data Only - Fast and Reliable) ---
+const { generateFlights, searchAirports } = require('./mockFlightData');
+
 app.get('/api/flights/search', async (req, res) => {
     try {
         const { origin, destination, date } = req.query;
-        if (!origin || !destination) return res.json({ flights: [] });
 
-        const response = await amadeus.shopping.flightOffersSearch.get({
-            originLocationCode: origin,
-            destinationLocationCode: destination,
-            departureDate: date,
-            adults: '1',
-            max: 20
+        console.log(`✈️ Flight search request: ${origin} -> ${destination} on ${date}`);
+
+        if (!origin || !destination) {
+            console.log('❌ Missing origin or destination');
+            return res.json({ flights: [], error: 'Please provide origin and destination airports' });
+        }
+
+        // Generate mock flights (always works, realistic data)
+        const flights = generateFlights(
+            origin.toUpperCase().trim(),
+            destination.toUpperCase().trim(),
+            date || new Date().toISOString().split('T')[0]
+        );
+
+        console.log(`✅ Generated ${flights.length} flights for ${origin} -> ${destination}`);
+
+        return res.json({
+            flights,
+            route: { origin: origin.toUpperCase(), destination: destination.toUpperCase() },
+            count: flights.length
         });
-
-        if (!response.data) return res.json({ flights: [] });
-
-        const dictionaries = response.result.dictionaries || {};
-        const uniqueFlights = new Map();
-
-        response.data.forEach(offer => {
-            const segment = offer.itineraries[0].segments[0];
-            const flightNum = segment.carrierCode + segment.number;
-
-            // Convert Price
-            let price = parseFloat(offer.price.total);
-            if (offer.price.currency === 'EUR') price *= 90;
-            if (offer.price.currency === 'USD') price *= 84;
-            price = Math.round(price);
-
-            // DEDUPLICATION LOGIC:
-            // Key is just the Flight Number (AI101). 
-            // If we have seen AI101 before, only overwrite if this new offer is CHEAPER.
-            if (!uniqueFlights.has(flightNum) || price < uniqueFlights.get(flightNum).totalPrice) {
-                uniqueFlights.set(flightNum, {
-                    id: offer.id,
-                    totalPrice: price,
-                    currency: 'INR',
-                    airline: dictionaries.carriers?.[segment.carrierCode] || segment.carrierCode,
-                    flightNumber: flightNum,
-                    aircraft: dictionaries.aircraft?.[segment.aircraft.code] || segment.aircraft.code,
-                    departure: segment.departure,
-                    arrival: segment.arrival,
-                    duration: offer.itineraries[0].duration.replace('PT', '').toLowerCase(),
-                    segments: offer.itineraries[0].segments.length,
-                    seatsAvailable: offer.numberOfBookableSeats || 9
-                });
-            }
-        });
-
-        res.json({ flights: Array.from(uniqueFlights.values()) });
 
     } catch (error) {
-        console.error("Flight Error");
-        res.json({ flights: [] });
+        console.error('❌ Flight search error:', error.message);
+        return res.json({
+            flights: [],
+            error: 'Failed to search flights. Please try again.',
+            details: error.message
+        });
     }
 });
 
-// --- API 2: HOTEL SEARCH (Paginated) ---
+
+// --- API 2: HOTEL SEARCH (Overpass API with Mock Fallback) ---
+const { generateHotels, searchHotelCities } = require('./mockHotelData');
+
 app.get('/api/hotels/search', async (req, res) => {
     try {
         const { city, page = 1 } = req.query;
         if (!city) return res.json({ hotels: [] });
 
-        const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`, { headers: { 'User-Agent': 'TravelApp/1.0' } });
-        if (!geoRes.data.length) return res.json({ hotels: [] });
+        console.log(`🏨 Searching hotels in: ${city} (page ${page})`);
 
-        const { lat, lon } = geoRes.data[0];
-        const radius = 25000; // 25km Radius
+        // Try Overpass API first for real worldwide data
+        try {
+            const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`, {
+                headers: { 'User-Agent': 'TravelApp/1.0' },
+                timeout: 5000
+            });
 
-        // Optimized Overpass Query
-        const overpassQuery = `[out:json][timeout:25];(node["tourism"="hotel"](around:${radius},${lat},${lon}););out body 50;`;
-        const hotelRes = await axios.get(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`);
+            if (geoRes.data.length > 0) {
+                const { lat, lon } = geoRes.data[0];
+                const radius = 25000;
 
-        const allHotels = (hotelRes.data.elements || [])
-            .filter(h => h.tags && h.tags.name)
-            .map(h => ({
-                id: h.id,
-                name: h.tags.name,
-                location: { lat: h.lat || lat, lng: h.lon || lon, address: h.tags['addr:street'] || city },
-                price: getFakePrice(h.tags.name),
-                rating: (Math.random() * 1.5 + 3.5).toFixed(1),
-                amenities: getAmenities(),
-                image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'
-            }));
+                const overpassQuery = `[out:json][timeout:25];(node["tourism"="hotel"](around:${radius},${lat},${lon}););out body 50;`;
+                const hotelRes = await axios.get(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`, { timeout: 20000 });
 
-        // Manual Pagination
-        const LIMIT = 10;
-        const start = (page - 1) * LIMIT;
-        res.json({ hotels: allHotels.slice(start, start + LIMIT) });
+                const allHotels = (hotelRes.data.elements || [])
+                    .filter(h => h.tags && h.tags.name)
+                    .map(h => ({
+                        id: h.id,
+                        name: h.tags.name,
+                        location: { lat: h.lat || lat, lng: h.lon || lon, address: h.tags['addr:street'] || city },
+                        price: getFakePrice(h.tags.name),
+                        rating: (Math.random() * 1.5 + 3.5).toFixed(1),
+                        amenities: getAmenities(),
+                        image: `https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80`
+                    }));
+
+                if (allHotels.length > 0) {
+                    const LIMIT = 10;
+                    const start = (parseInt(page) - 1) * LIMIT;
+                    console.log(`✅ Found ${allHotels.length} hotels via Overpass`);
+                    return res.json({ hotels: allHotels.slice(start, start + LIMIT) });
+                }
+            }
+        } catch (overpassErr) {
+            console.log('⚠️ Overpass/Nominatim failed:', overpassErr.message);
+        }
+
+        // Fallback to mock data for major Indian cities
+        const mockHotels = generateHotels(city, parseInt(page), 10);
+        if (mockHotels.length > 0) {
+            console.log(`✅ Using mock data for ${city} (${mockHotels.length} hotels)`);
+            return res.json({ hotels: mockHotels });
+        }
+
+        console.log(`⚠️ No hotels found for "${city}"`);
+        res.json({ hotels: [] });
 
     } catch (error) {
+        console.error("Hotel API Error:", error.message);
         res.json({ hotels: [] });
     }
 });
@@ -876,26 +891,9 @@ app.get('/api/airports', async (req, res) => {
         const { keyword } = req.query;
         if (!keyword || keyword.length < 2) return res.json({ airports: [] });
 
-        // Try Amadeus API first if configured
-        if (AMADEUS_ID && AMADEUS_SECRET) {
-            try {
-                const response = await amadeus.referenceData.locations.get({
-                    keyword,
-                    subType: 'AIRPORT',
-                    'page[limit]': 7
-                });
-                const airports = response.data.map(i => ({
-                    name: i.name,
-                    iata: i.iataCode,
-                    city: i.address.cityName
-                }));
-                if (airports.length > 0) return res.json({ airports });
-            } catch (amadeusError) {
-                console.log("⚠️ Amadeus API failed, using local fallback:", amadeusError.message);
-            }
-        }
+        console.log(`✈️ Searching airports for: ${keyword}`);
 
-        // Fallback: Search in static Indian airports list
+        // Use static Indian airports list (instant, reliable)
         const searchTerm = keyword.toLowerCase();
         const matchedAirports = INDIAN_AIRPORTS.filter(airport =>
             airport.city.toLowerCase().includes(searchTerm) ||
@@ -903,6 +901,7 @@ app.get('/api/airports', async (req, res) => {
             airport.iata.toLowerCase().includes(searchTerm)
         ).slice(0, 7);
 
+        console.log(`✅ Found ${matchedAirports.length} airports`);
         res.json({ airports: matchedAirports });
     } catch (e) {
         console.error("Airport API Error:", e.message);

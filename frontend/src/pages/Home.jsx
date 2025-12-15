@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navigation from "./navigation";
 import CardsSection from "./CardSection";
-import Map from "./Map";
 import TravelDestination from "./TravelDestination";
 import Activities from "./Activities";
 import CommunityEvents from "./CommunityEvents";
