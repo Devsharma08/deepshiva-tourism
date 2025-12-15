@@ -722,7 +722,7 @@ import { useParams, useNavigate } from "react-router-dom";
 // Ensure lucide-react is installed: npm install lucide-react
 import {
   ArrowLeft, MapPin, Thermometer, Calendar, Leaf, Navigation, Users,
-  Sun, Cloud, CloudRain, CloudLightning, Snowflake, Wind, AlertCircle
+  Sun, Cloud, CloudRain, CloudLightning, Snowflake, Wind, AlertCircle, Activity
 } from "lucide-react";
 import { getStateData, getStateDesc } from "../Data/TourismData";
 import DestinationRail from "../SpecsComponent/DestinationRail";
@@ -767,6 +767,10 @@ const StateDetails = () => {
 
   const [forecast, setForecast] = useState([]);
   const [weatherLoading, setWeatherLoading] = useState(true);
+
+  // AQI STATE
+  const [aqi, setAqi] = useState(null);
+  const [aqiLoading, setAqiLoading] = useState(true);
 
   // LIVE DATA STATES
   const [realDestinations, setRealDestinations] = useState([]);
@@ -833,11 +837,55 @@ const StateDetails = () => {
       if (cached) {
         setForecast(JSON.parse(cached));
         setWeatherLoading(false);
+
+        // Fetch AQI separately even when weather is cached
+        console.log('🔵 [AQI] Starting fetch for:', stateName);
+        try {
+          const aqiCacheKey = `aqi_${stateName}_${new Date().getDate()}`;
+          const cachedAqi = localStorage.getItem(aqiCacheKey);
+
+          if (cachedAqi) {
+            const parsed = JSON.parse(cachedAqi);
+            console.log('🔵 [AQI] Found cache:', parsed);
+            if (parsed.value && parsed.label !== '—') {
+              setAqi(parsed);
+              setAqiLoading(false);
+              return;
+            }
+          }
+
+          console.log('🔵 [AQI] Fetching from backend...');
+          const aqiRes = await fetch(`http://localhost:5000/api/aqi?state=${encodeURIComponent(stateName)}`);
+          console.log('🔵 [AQI] Response status:', aqiRes.status);
+          if (aqiRes.ok) {
+            const aqiData = await aqiRes.json();
+            console.log('🔵 [AQI] Got data:', aqiData);
+            setAqi(aqiData);
+            localStorage.setItem(aqiCacheKey, JSON.stringify(aqiData));
+          } else {
+            console.log('🔵 [AQI] Response not OK');
+            setAqi({ value: null, label: '—', color: '#94a3b8' });
+          }
+        } catch (aqiErr) {
+          console.warn('🔴 [AQI] Fetch failed:', aqiErr);
+          setAqi({ value: null, label: '—', color: '#94a3b8' });
+        }
+        setAqiLoading(false);
       } else {
         try {
           let queryName = stateName;
-          if (stateName === "J & K") queryName = "Srinagar";
-          if (stateName === "Odisha") queryName = "Bhubaneswar";
+          // State name to city mapping for weather API
+          const stateToCity = {
+            "J & K": "Srinagar",
+            "Odisha": "Bhubaneswar",
+            "Arunachal Pradesh": "Itanagar",
+            "Telangana": "Hyderabad",
+            "Dadra & Nagar Haveli and Daman & Diu": "Silvassa",
+            "Lakshadweep": "Kavaratti",
+            "Chandigarh": "Chandigarh",
+            "Ladakh": "Leh"
+          };
+          if (stateToCity[stateName]) queryName = stateToCity[stateName];
           if (stateName.includes("Andaman")) queryName = "Port Blair";
 
           const geoRes = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(queryName)},IN&limit=1&appid=${WEATHER_KEY}`);
@@ -873,11 +921,74 @@ const StateDetails = () => {
 
             setForecast(processed);
             localStorage.setItem(cacheKey, JSON.stringify(processed));
+
+            // Fetch AQI from backend (uses Open-Meteo API)
+            try {
+              const aqiCacheKey = `aqi_${stateName}_${new Date().getDate()}`;
+              const cachedAqi = localStorage.getItem(aqiCacheKey);
+
+              // Only use cache if it has valid data (not a failed request)
+              if (cachedAqi) {
+                const parsed = JSON.parse(cachedAqi);
+                if (parsed.value && parsed.label !== '—') {
+                  setAqi(parsed);
+                  setAqiLoading(false);
+                  return; // Use valid cache
+                }
+              }
+
+              // Fetch fresh data from backend
+              const aqiRes = await fetch(`http://localhost:5000/api/aqi?state=${encodeURIComponent(stateName)}`);
+              if (aqiRes.ok) {
+                const aqiData = await aqiRes.json();
+                setAqi(aqiData);
+                localStorage.setItem(aqiCacheKey, JSON.stringify(aqiData));
+              } else {
+                setAqi({ value: null, label: '—', color: '#94a3b8' });
+              }
+            } catch (aqiErr) {
+              console.warn('AQI fetch failed:', aqiErr);
+              setAqi({ value: null, label: '—', color: '#94a3b8' });
+            }
+            setAqiLoading(false);
           }
         } catch (e) {
           console.warn("Weather API Limit:", e);
-          // Fallback Mock
+          // Fallback Mock for weather
           setForecast([{ name: 'Today', date: new Date().getDate(), max: 30, min: 22, condition: CONDITIONS[0] }]);
+
+          // STILL fetch AQI even if weather fails!
+          console.log('🔵 [AQI] Weather failed, but still fetching AQI for:', stateName);
+          try {
+            const aqiCacheKey = `aqi_${stateName}_${new Date().getDate()}`;
+            const cachedAqi = localStorage.getItem(aqiCacheKey);
+
+            if (cachedAqi) {
+              const parsed = JSON.parse(cachedAqi);
+              if (parsed.value && parsed.label !== '—') {
+                console.log('🔵 [AQI] Using cached:', parsed);
+                setAqi(parsed);
+                setAqiLoading(false);
+                setWeatherLoading(false);
+                return;
+              }
+            }
+
+            console.log('🔵 [AQI] Fetching from backend...');
+            const aqiRes = await fetch(`http://localhost:5000/api/aqi?state=${encodeURIComponent(stateName)}`);
+            if (aqiRes.ok) {
+              const aqiData = await aqiRes.json();
+              console.log('🔵 [AQI] Got data:', aqiData);
+              setAqi(aqiData);
+              localStorage.setItem(aqiCacheKey, JSON.stringify(aqiData));
+            } else {
+              setAqi({ value: null, label: '—', color: '#94a3b8' });
+            }
+          } catch (aqiErr) {
+            console.warn('🔴 [AQI] Fetch failed:', aqiErr);
+            setAqi({ value: null, label: '—', color: '#94a3b8' });
+          }
+          setAqiLoading(false);
         }
         finally { setWeatherLoading(false); }
       }
@@ -951,6 +1062,17 @@ const StateDetails = () => {
           <h1 style={styles.title}>{data.name}</h1>
           <div style={styles.statsRow}>
             <StatBadge icon={<Thermometer size={16} />} label={data.stats.weather} />
+            {/* AQI Badge - Always Visible */}
+            <div style={{
+              ...styles.statBadge,
+              background: aqi?.color ? `linear-gradient(135deg, ${aqi.color}20, ${aqi.color}10)` : 'rgba(148,163,184,0.1)',
+              borderColor: aqi?.color ? `${aqi.color}40` : 'rgba(148,163,184,0.3)'
+            }}>
+              <Activity size={16} color={aqi?.color || '#94a3b8'} />
+              <span>AQI: <strong style={{ color: aqi?.color || '#94a3b8' }}>
+                {aqiLoading ? 'Loading...' : (aqi?.label || '—')}
+              </strong></span>
+            </div>
             <StatBadge icon={<Calendar size={16} />} label={data.stats.bestTime} />
             <StatBadge icon={<MapPin size={16} />} label={`${realDestinations.length || data.destinations.length} Hotspots`} />
           </div>
@@ -986,135 +1108,191 @@ const StateDetails = () => {
 
         {/* 3. SUSTAINABLE PLANNER */}
         <div style={styles.sectionSpacer}>
-          <h2 style={styles.sectionTitle}>Sustainable Planner</h2>
-          <p style={styles.sectionSubtitle}>Compare live crowd levels and carbon impact.</p>
+          <h2 style={styles.sectionTitle}>🌱 Sustainable Planner</h2>
+          <p style={styles.sectionSubtitle}>Compare live crowd levels and carbon impact for smarter travel choices.</p>
 
           <div style={styles.plannerGrid}>
 
             {/* LIST */}
             <div style={styles.plannerList}>
-              {impactLoading ? <div style={{ padding: 20 }}>Syncing Live Data...</div> :
-                realDestinations.length === 0 ? <div style={{ padding: 20 }}>No live data available.</div> :
-                  realDestinations.map(place => (
-                    <div
-                      key={place.id}
-                      onClick={() => setSelectedPlace(place)}
-                      style={{
-                        ...styles.placeCard,
-                        borderColor: selectedPlace?.id === place.id ? '#3b82f6' : '#e2e8f0',
-                        backgroundColor: selectedPlace?.id === place.id ? '#eff6ff' : 'white',
-                        transform: selectedPlace?.id === place.id ? 'translateY(-4px)' : 'translateY(0)',
-                        boxShadow: selectedPlace?.id === place.id
-                          ? '0 12px 30px -8px rgba(59, 130, 246, 0.25)'
-                          : '0 4px 15px rgba(0,0,0,0.05)',
-                        height: '280px',
-                        display: 'flex',
-                        flexDirection: 'column'
-                      }}
-                    >
-                      {/* Destination Image */}
+              {impactLoading ? (
+                // Skeleton Loading Animation
+                <>
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} style={{
+                      ...styles.placeCard,
+                      height: '280px',
+                      minWidth: '280px',
+                      flexShrink: 0,
+                      background: 'linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%)',
+                      backgroundSize: '200% 100%',
+                      animation: 'shimmer 1.5s infinite'
+                    }}>
+                      <div style={{ height: '140px', borderRadius: '16px 16px 0 0', background: '#e2e8f0' }} />
+                      <div style={{ padding: '16px' }}>
+                        <div style={{ height: '20px', width: '70%', background: '#e2e8f0', borderRadius: '4px', marginBottom: '12px' }} />
+                        <div style={{ height: '16px', width: '50%', background: '#e2e8f0', borderRadius: '4px' }} />
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ) : realDestinations.length === 0 ? (
+                // Improved Empty State with Fallback 
+                <div style={{
+                  gridColumn: '1 / -1',
+                  padding: '60px 20px',
+                  textAlign: 'center',
+                  background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                  borderRadius: '24px',
+                  border: '2px dashed #e2e8f0'
+                }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>🗺️</div>
+                  <h3 style={{ fontSize: '1.25rem', color: '#1e293b', marginBottom: '8px' }}>
+                    Live Data Temporarily Unavailable
+                  </h3>
+                  <p style={{ color: '#64748b', marginBottom: '20px', maxWidth: '400px', margin: '0 auto 20px' }}>
+                    We're working on fetching real-time crowd and carbon data for {stateName}.
+                    Check back soon or explore the region info above!
+                  </p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    style={{
+                      padding: '12px 24px',
+                      background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
+                    }}
+                  >
+                    🔄 Retry
+                  </button>
+                </div>
+              ) :
+                realDestinations.map(place => (
+                  <div
+                    key={place.id}
+                    onClick={() => setSelectedPlace(place)}
+                    style={{
+                      ...styles.placeCard,
+                      borderColor: selectedPlace?.id === place.id ? '#3b82f6' : '#e2e8f0',
+                      backgroundColor: selectedPlace?.id === place.id ? '#eff6ff' : 'white',
+                      transform: selectedPlace?.id === place.id ? 'translateY(-4px)' : 'translateY(0)',
+                      boxShadow: selectedPlace?.id === place.id
+                        ? '0 12px 30px -8px rgba(59, 130, 246, 0.25)'
+                        : '0 4px 15px rgba(0,0,0,0.05)',
+                      height: '280px',
+                      minWidth: '280px',
+                      flexShrink: 0,
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    {/* Destination Image */}
+                    <div style={{
+                      height: '140px',
+                      minHeight: '140px',
+                      borderRadius: '16px 16px 0 0',
+                      overflow: 'hidden',
+                      position: 'relative'
+                    }}>
                       <div style={{
-                        height: '140px',
-                        minHeight: '140px',
-                        borderRadius: '16px 16px 0 0',
-                        overflow: 'hidden',
-                        position: 'relative'
+                        width: '100%',
+                        height: '100%',
+                        background: destinationImages[place.id]
+                          ? `url(${destinationImages[place.id]}) center/cover no-repeat`
+                          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        transition: 'transform 0.4s ease'
                       }}>
-                        <div style={{
-                          width: '100%',
-                          height: '100%',
-                          background: destinationImages[place.id]
-                            ? `url(${destinationImages[place.id]}) center/cover no-repeat`
-                            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          transition: 'transform 0.4s ease'
-                        }}>
-                          {!destinationImages[place.id] && (
-                            <div style={{
-                              height: '100%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: 'white',
-                              fontWeight: '600',
-                              fontSize: '1rem',
-                              textShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                            }}>
-                              {place.name}
-                            </div>
-                          )}
-                        </div>
-                        {/* Type Badge on Image */}
-                        <div style={{
-                          position: 'absolute',
-                          top: '12px',
-                          right: '12px',
-                          fontSize: '0.65rem',
-                          padding: '4px 10px',
-                          borderRadius: '20px',
-                          background: 'rgba(255,255,255,0.9)',
-                          backdropFilter: 'blur(8px)',
-                          color: '#475569',
-                          fontWeight: '600',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px'
-                        }}>
-                          {place.description || 'Place'}
-                        </div>
+                        {!destinationImages[place.id] && (
+                          <div style={{
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: '600',
+                            fontSize: '1rem',
+                            textShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                          }}>
+                            {place.name}
+                          </div>
+                        )}
+                      </div>
+                      {/* Type Badge on Image */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        fontSize: '0.65rem',
+                        padding: '4px 10px',
+                        borderRadius: '20px',
+                        background: 'rgba(255,255,255,0.9)',
+                        backdropFilter: 'blur(8px)',
+                        color: '#475569',
+                        fontWeight: '600',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                      }}>
+                        {place.description || 'Place'}
+                      </div>
+                    </div>
+
+                    {/* Card Content */}
+                    <div style={{
+                      padding: '16px',
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div style={{
+                        fontWeight: '700',
+                        color: '#0f172a',
+                        fontSize: '1rem',
+                        marginBottom: '12px',
+                        lineHeight: '1.3'
+                      }}>
+                        {place.name}
                       </div>
 
-                      {/* Card Content */}
                       <div style={{
-                        padding: '16px',
-                        flex: 1,
                         display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between'
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        paddingTop: '12px',
+                        borderTop: '1px solid #f1f5f9'
                       }}>
                         <div style={{
-                          fontWeight: '700',
-                          color: '#0f172a',
-                          fontSize: '1rem',
-                          marginBottom: '12px',
-                          lineHeight: '1.3'
-                        }}>
-                          {place.name}
-                        </div>
-
-                        <div style={{
+                          fontSize: '0.75rem',
+                          color: '#64748b',
                           display: 'flex',
-                          justifyContent: 'space-between',
                           alignItems: 'center',
-                          paddingTop: '12px',
-                          borderTop: '1px solid #f1f5f9'
+                          gap: '6px',
+                          background: place.carbon_intensity_factor > 1.2 ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)',
+                          padding: '6px 10px',
+                          borderRadius: '20px'
                         }}>
-                          <div style={{
-                            fontSize: '0.75rem',
-                            color: '#64748b',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            background: place.carbon_intensity_factor > 1.2 ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)',
-                            padding: '6px 10px',
-                            borderRadius: '20px'
-                          }}>
-                            <Leaf size={14} color={place.carbon_intensity_factor > 1.2 ? '#f59e0b' : '#22c55e'} />
-                            <span style={{ fontWeight: '600' }}>{place.carbon_intensity_factor}x</span>
-                          </div>
-                          <div style={{
-                            fontSize: '1rem',
-                            color: place.cached_footfall > 30000 ? '#ef4444' : '#22c55e',
-                            fontWeight: '700',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}>
-                            <Users size={14} />
-                            {place.cached_footfall > 1000 ? (place.cached_footfall / 1000).toFixed(1) + 'k' : place.cached_footfall}
-                          </div>
+                          <Leaf size={14} color={place.carbon_intensity_factor > 1.2 ? '#f59e0b' : '#22c55e'} />
+                          <span style={{ fontWeight: '600' }}>{place.carbon_intensity_factor}x</span>
+                        </div>
+                        <div style={{
+                          fontSize: '1rem',
+                          color: place.cached_footfall > 30000 ? '#ef4444' : '#22c55e',
+                          fontWeight: '700',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <Users size={14} />
+                          {place.cached_footfall > 1000 ? (place.cached_footfall / 1000).toFixed(1) + 'k' : place.cached_footfall}
                         </div>
                       </div>
                     </div>
-                  ))
+                  </div>
+                ))
               }
             </div>
 
@@ -1661,12 +1839,12 @@ const styles = {
   },
   plannerList: {
     flex: "2",
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "nowrap",
     gap: "20px",
-    maxHeight: "650px",
-    overflowY: "auto",
-    paddingRight: "10px"
+    overflowX: "auto",
+    paddingBottom: "15px",
   },
 
   // Place Card - Premium Design

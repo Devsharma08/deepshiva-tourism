@@ -31,14 +31,14 @@ const RegionalDashboard = () => {
       {/* Wrapper to match sibling width (1200px) */}
       <div className="max-w-[1200px] px-2 py-12 font-sans">
 
-        {/* --- HEADER (Matched to Previous Sibling Style) --- */}
+        {/* --- HEADER (Matched to StateDetails Section Style) --- */}
         <div className="flex items-center gap-5 mb-10">
-          <div className="h-16 w-1 bg-blue-600 rounded-full"></div> {/* The Blue Accent Bar */}
+          <div className="h-16 w-1 bg-gradient-to-b from-blue-600 to-indigo-500 rounded-full"></div>
           <div>
-            <h2 className="text-3xl md:text-[31px] font-bold text-slate-900 tracking-tight" style={{ fontFamily: "'Cinzel', serif" }}>
+            <h2 className="text-[2.5rem] font-semibold text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 tracking-tight" style={{ fontFamily: "'Cinzel', serif", letterSpacing: '-0.5px' }}>
               Regional Overview
             </h2>
-            <p className="text-slate-500 font-medium mt-1 text-sm md:text-base tracking-wide uppercase">
+            <p className="text-slate-500 font-medium mt-1 text-[1.1rem] tracking-wide">
               Key insights & Logistics for <span className="text-blue-600">{stateName}</span>
             </p>
           </div>
@@ -46,10 +46,10 @@ const RegionalDashboard = () => {
 
         {/* --- SECTION 1: REGIONAL ACHIEVEMENTS --- */}
         <div className="mb-10">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+          <div className="flex flex-row gap-5 overflow-x-auto pb-2">
             {data.achievements?.map((stat, idx) => (
               // Card: White with Soft Shadow
-              <div key={idx} className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] border border-slate-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+              <div key={idx} className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] border border-slate-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl min-w-[200px] flex-shrink-0">
                 <div className="flex items-start justify-between mb-3">
                   {/* Icon Container - Light Tint */}
                   <div className={`p-3 rounded-xl ${stat.bg} ${stat.color}`}>

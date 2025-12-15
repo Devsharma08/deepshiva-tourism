@@ -49,16 +49,17 @@ const normalizeStateName = (name) => {
     "j & k": "jammu & kashmir",
     "j and k": "jammu & kashmir",
     "jammu and kashmir": "jammu & kashmir",
-    "chhattisgarh": "chhattisgarh", // Some GeoJSON use different spellings
+    "chhattisgarh": "chhattisgarh",
     "chhatisgarh": "chhattisgarh",
 
     // Union Territories
     "delhi": "nct of delhi",
     "nct delhi": "nct of delhi",
     "new delhi": "nct of delhi",
-    "andaman and nicobar islands": "andaman & nicobar",
-    "andaman & nicobar islands": "andaman & nicobar",
-    "andaman and nicobar": "andaman & nicobar",
+    "andaman and nicobar islands": "andaman & nicobar islands",
+    "andaman & nicobar islands": "andaman & nicobar islands",
+    "andaman and nicobar": "andaman & nicobar islands",
+    "andaman & nicobar": "andaman & nicobar islands",
     "dadra and nagar haveli and daman and diu": "dadra & nagar haveli",
     "dadra & nagar haveli and daman & diu": "dadra & nagar haveli",
     "dadra and nagar haveli": "dadra & nagar haveli",
@@ -82,7 +83,7 @@ const normalizeStateName = (name) => {
     "sikkim": "sikkim",
     "tripura": "tripura",
 
-    // Other States
+    // Other States with common variations
     "west bengal": "west bengal",
     "karnataka": "karnataka",
     "kerala": "kerala",
@@ -90,6 +91,7 @@ const normalizeStateName = (name) => {
     "tamilnadu": "tamil nadu",
     "andhra pradesh": "andhra pradesh",
     "telangana": "telangana",
+    "telengana": "telangana",
     "maharashtra": "maharashtra",
     "gujarat": "gujarat",
     "rajasthan": "rajasthan",
@@ -101,6 +103,7 @@ const normalizeStateName = (name) => {
     "haryana": "haryana",
     "himachal pradesh": "himachal pradesh",
     "goa": "goa",
+    "orissa": "orissa",
 
     // City to state (for context-based searching)
     "bengaluru": "karnataka",
@@ -109,6 +112,8 @@ const normalizeStateName = (name) => {
     "chennai": "tamil nadu",
     "kolkata": "west bengal",
     "hyderabad": "telangana",
+    "itanagar": "arunachal pradesh",
+    "port blair": "andaman & nicobar islands",
   };
 
   return mapping[lower] || lower;
