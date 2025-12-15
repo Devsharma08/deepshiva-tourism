@@ -132,7 +132,7 @@ function App() {
             <Route path="/foot" element={<ProtectedRoute><RegionalDashboard /></ProtectedRoute>} />
             <Route path="/booking" element={<ProtectedRoute><TravelDashboard /></ProtectedRoute>} />
             <Route path="/itinerary" element={<ProtectedRoute><ItineraryPlanner /></ProtectedRoute>} />
-            <Route path="/map" element={<ProtectedRoute><India3D preLoadedData={indiaGeoData} /></ProtectedRoute>} />
+            <Route path="/map" element={<ProtectedRoute><India3D /></ProtectedRoute>} />
             <Route path="/map/:stateName" element={<ProtectedRoute><StateDetails /></ProtectedRoute>} />
           </Routes>
         </Suspense>
