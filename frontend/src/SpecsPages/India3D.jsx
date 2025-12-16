@@ -126,7 +126,7 @@ const REGIONS_DATA = {
 };
 
 // Region Map Component - Shows ONLY that region
-const RegionOnlyMap = ({ geoData, regionStates, regionColor, mapCenter, mapScale }) => {
+const RegionOnlyMap = ({ geoData, regionStates, regionColor, mapCenter, mapScale, onStateClick }) => {
   if (!geoData) return <div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />;
 
   return (
@@ -150,9 +150,13 @@ const RegionOnlyMap = ({ geoData, regionStates, regionColor, mapCenter, mapScale
                 <Geography
                   key={geo.rsmKey}
                   geography={geo}
+                  onClick={() => onStateClick && onStateClick(stateName)}
                   fill={regionColor}
                   stroke="#FFF"
                   strokeWidth={1}
+                  className="region-state"
+                  data-tooltip-id="map-tooltip"
+                  data-tooltip-content={`Explore ${stateName}`}
                   style={{
                     default: { outline: "none" },
                     hover: { outline: "none", fill: "#FFF", cursor: "pointer" }
@@ -262,6 +266,7 @@ const RegionSection = ({ region, geoData, onStateClick, isMapOnLeft }) => {
         regionColor={region.color}
         mapCenter={region.mapCenter}
         mapScale={region.mapScale}
+        onStateClick={onStateClick}
       />
     </div>
   );
@@ -434,12 +439,12 @@ const India3D = () => {
               </div>
 
               {/* Stats */}
-              <div className="bg-white rounded-xl p-4 shadow-lg border border-amber-100 grid grid-cols-2 gap-2 text-center">
-                <div className="bg-amber-50 rounded-lg p-2">
+              <div className="bg-white rounded-xl p-4 shadow-lg border border-amber-100 flex gap-2 text-center">
+                <div className="bg-amber-50 rounded-lg p-2 flex-1">
                   <div className="text-lg font-black text-amber-600">28</div>
                   <div className="text-xs text-gray-500">States</div>
                 </div>
-                <div className="bg-orange-50 rounded-lg p-2">
+                <div className="bg-orange-50 rounded-lg p-2 flex-1">
                   <div className="text-lg font-black text-orange-600">8</div>
                   <div className="text-xs text-gray-500">UTs</div>
                 </div>
