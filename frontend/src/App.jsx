@@ -30,12 +30,16 @@
 // export default App;
 
 import React, { useState, useEffect, Suspense } from 'react'; // Import Hooks
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import { getMapFromDB, saveMapToDB } from "./utils/ContextManager";
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
+
+// Layout Components
+const Navigation = React.lazy(() => import('./pages/navigation'));
+const Footer = React.lazy(() => import('./pages/Footer'));
 
 // Lazy load heavy components for faster initial load and navigation
 const ChatPage = React.lazy(() => import('./pages/ChatPage'));
@@ -89,6 +93,35 @@ const LoadingSpinner = () => (
   </div>
 );
 
+// Layout component with Navigation and Footer
+const Layout = ({ children }) => {
+  const location = useLocation();
+
+  // Pages that should NOT have the global header/footer (they have their own)
+  const noLayoutPages = ['/auth', '/onboarding', '/'];
+  const showLayout = !noLayoutPages.includes(location.pathname);
+
+  return (
+    <>
+      {showLayout && (
+        <Suspense fallback={null}>
+          <Navigation />
+        </Suspense>
+      )}
+      <main style={{
+        minHeight: showLayout ? 'calc(100vh - 60px)' : '100vh',
+        paddingTop: showLayout ? '60px' : '0' // Account for fixed header
+      }}>
+        {children}
+      </main>
+      {showLayout && (
+        <Suspense fallback={null}>
+          <Footer />
+        </Suspense>
+      )}
+    </>
+  );
+};
 
 const INDIA_MAP_URL = "https://raw.githubusercontent.com/geohacker/india/master/state/india_telengana.geojson";
 
@@ -120,21 +153,23 @@ function App() {
       <XPManager />
       <div className='w-full h-full m-0 p-0'>
         <Suspense fallback={<LoadingSpinner />}>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/auth" element={<AuthPage />} />
+          <Layout>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/auth" element={<AuthPage />} />
 
-            {/* Protected Routes */}
-            <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-            <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-            <Route path="/foot" element={<ProtectedRoute><RegionalDashboard /></ProtectedRoute>} />
-            <Route path="/booking" element={<ProtectedRoute><TravelDashboard /></ProtectedRoute>} />
-            <Route path="/itinerary" element={<ProtectedRoute><ItineraryPlanner /></ProtectedRoute>} />
-            <Route path="/map" element={<ProtectedRoute><India3D /></ProtectedRoute>} />
-            <Route path="/map/:stateName" element={<ProtectedRoute><StateDetails /></ProtectedRoute>} />
-          </Routes>
+              {/* Protected Routes */}
+              <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+              <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+              <Route path="/foot" element={<ProtectedRoute><RegionalDashboard /></ProtectedRoute>} />
+              <Route path="/booking" element={<ProtectedRoute><TravelDashboard /></ProtectedRoute>} />
+              <Route path="/itinerary" element={<ProtectedRoute><ItineraryPlanner /></ProtectedRoute>} />
+              <Route path="/map" element={<ProtectedRoute><India3D /></ProtectedRoute>} />
+              <Route path="/map/:stateName" element={<ProtectedRoute><StateDetails /></ProtectedRoute>} />
+            </Routes>
+          </Layout>
         </Suspense>
       </div>
     </AuthProvider>

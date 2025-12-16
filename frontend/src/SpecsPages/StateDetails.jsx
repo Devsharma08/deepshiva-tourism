@@ -722,7 +722,8 @@ import { useParams, useNavigate } from "react-router-dom";
 // Ensure lucide-react is installed: npm install lucide-react
 import {
   ArrowLeft, MapPin, Thermometer, Calendar, Leaf, Navigation, Users,
-  Sun, Cloud, CloudRain, CloudLightning, Snowflake, Wind, AlertCircle, Activity
+  Sun, Cloud, CloudRain, CloudLightning, Snowflake, Wind, AlertCircle, Activity,
+  Sparkles, ChevronRight, Gem, X, Map, Route, Clock, Star, ExternalLink, Car
 } from "lucide-react";
 import { getStateData, getStateDesc } from "../Data/TourismData";
 import DestinationRail from "../SpecsComponent/DestinationRail";
@@ -739,6 +740,9 @@ const WEATHER_KEY = "bd5e378503939ddaee76f12ad7a97608";
 
 // --- WIKIMEDIA SERVICE IMPORT ---
 import { getIndiaLocationImage, getImageUrl, getPlaceholderImage } from '../utils/wikimediaService';
+
+// --- HIDDEN GEMS DATABASE ---
+import { getHiddenGemsForState } from '../Data/HiddenGemsData';
 
 // --- UTILS ---
 const CONDITIONS = [
@@ -781,6 +785,13 @@ const StateDetails = () => {
   // DYNAMIC IMAGE STATES (WIKIMEDIA)
   const [heroImageUrl, setHeroImageUrl] = useState(null);
   const [destinationImages, setDestinationImages] = useState({});
+
+  // HIDDEN GEMS STATE - Track which card's alternatives panel is expanded
+  const [expandedHiddenGemsId, setExpandedHiddenGemsId] = useState(null);
+
+  // HIDDEN GEM DETAIL MODAL - Show detailed info when clicking a hidden gem
+  const [selectedHiddenGem, setSelectedHiddenGem] = useState(null);
+  const [showHiddenGemModal, setShowHiddenGemModal] = useState(false);
 
   useEffect(() => window.scrollTo(0, 0), [stateName]);
 
@@ -1041,10 +1052,433 @@ const StateDetails = () => {
 
   const metrics = calculateMetrics(selectedPlace);
 
+  // HIDDEN GEMS HELPER FUNCTIONS
+  // Calculate distance between two destinations in km
+  const calculateDistanceBetween = (dest1, dest2) => {
+    if (!dest1?.latitude || !dest2?.latitude) return Infinity;
+    const R = 6371; // Earth's radius in km
+    const dLat = (dest2.latitude - dest1.latitude) * (Math.PI / 180);
+    const dLon = (dest2.longitude - dest1.longitude) * (Math.PI / 180);
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(dest1.latitude * (Math.PI / 180)) *
+      Math.cos(dest2.latitude * (Math.PI / 180)) *
+      Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Find nearby hidden gems from the database for an overcrowded place
+  const getHiddenGems = (crowdedPlace) => {
+    if (!crowdedPlace) return [];
+
+    // Only show alternatives for overcrowded places (>30000 footfall)
+    if (crowdedPlace.cached_footfall <= 30000) return [];
+
+    // Get hidden gems for the current state from the database
+    const stateGems = getHiddenGemsForState(stateName);
+    if (!stateGems || stateGems.length === 0) return [];
+
+    // Get existing destination names for comparison (to avoid duplicates)
+    const existingNames = new Set(
+      realDestinations.map(d => d.name.toLowerCase().trim())
+    );
+
+    // Filter and enhance hidden gems
+    return stateGems
+      .filter(gem => {
+        // Exclude if gem name matches any existing destination
+        if (existingNames.has(gem.name.toLowerCase().trim())) return false;
+        // Must have valid coordinates
+        if (!gem.latitude || !gem.longitude) return false;
+        return true;
+      })
+      .map(gem => ({
+        ...gem,
+        // Standardize field names to match destination format
+        cached_footfall: gem.footfall,
+        carbon_intensity_factor: gem.carbonFactor,
+        distanceFromCrowded: calculateDistanceBetween(crowdedPlace, gem)
+      }))
+      .filter(gem => gem.distanceFromCrowded <= 250) // Within 250km
+      .sort((a, b) => a.cached_footfall - b.cached_footfall) // Least crowded first
+      .slice(0, 3); // Top 3 alternatives
+  };
+
+  // Check if a place is overcrowded
+  const isOvercrowded = (place) => place?.cached_footfall > 30000;
+
+  // Open hidden gem detail modal
+  const openHiddenGemModal = (gem, fromPlace) => {
+    setSelectedHiddenGem({
+      ...gem,
+      fromPlace: fromPlace // The overcrowded place we're suggesting an alternative for
+    });
+    setShowHiddenGemModal(true);
+  };
+
+  // Close hidden gem modal
+  const closeHiddenGemModal = () => {
+    setShowHiddenGemModal(false);
+    setSelectedHiddenGem(null);
+  };
+
+  // Calculate estimated travel time (rough estimate based on 60km/h average)
+  const getEstimatedTravelTime = (distanceKm) => {
+    const hours = distanceKm / 60;
+    if (hours < 1) return `${Math.round(hours * 60)} min`;
+    return `${Math.floor(hours)}h ${Math.round((hours % 1) * 60)}min`;
+  };
+
+  // Generate Google Maps directions URL
+  const getGoogleMapsUrl = (fromPlace, toPlace) => {
+    if (!fromPlace?.latitude || !toPlace?.latitude) return '#';
+    return `https://www.google.com/maps/dir/?api=1&origin=${fromPlace.latitude},${fromPlace.longitude}&destination=${toPlace.latitude},${toPlace.longitude}&travelmode=driving`;
+  };
+
+  // Hidden Gem Detail Modal Component
+  const HiddenGemModal = () => {
+    if (!showHiddenGemModal || !selectedHiddenGem) return null;
+
+    const gem = selectedHiddenGem;
+    const fromPlace = gem.fromPlace;
+    const mapsUrl = getGoogleMapsUrl(fromPlace, gem);
+    const travelTime = getEstimatedTravelTime(gem.distanceFromCrowded);
+    const carbonSaved = fromPlace?.cached_footfall
+      ? Math.round((fromPlace.cached_footfall - gem.cached_footfall) * 0.005)
+      : 0;
+
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '20px',
+          animation: 'fadeIn 0.3s ease'
+        }}
+        onClick={closeHiddenGemModal}
+      >
+        <div
+          style={{
+            background: 'white',
+            borderRadius: '24px',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflow: 'hidden',
+            boxShadow: '0 25px 80px rgba(0,0,0,0.3)',
+            animation: 'slideUp 0.3s ease'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header with gradient */}
+          <div style={{
+            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            padding: '24px',
+            color: 'white',
+            position: 'relative'
+          }}>
+            <button
+              onClick={closeHiddenGemModal}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <X size={18} color="white" />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '14px',
+                background: 'rgba(255,255,255,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Gem size={24} color="white" />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', opacity: 0.9, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  Hidden Gem Discovery
+                </div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', margin: 0 }}>
+                  {gem.name}
+                </h3>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.85rem',
+              opacity: 0.9
+            }}>
+              <MapPin size={14} />
+              <span>{gem.description}</span>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div style={{ padding: '24px' }}>
+            {/* Stats Row */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '12px',
+              marginBottom: '20px'
+            }}>
+              <div style={{
+                background: '#fffbeb',
+                borderRadius: '12px',
+                padding: '14px',
+                textAlign: 'center',
+                border: '1px solid #fde68a'
+              }}>
+                <Users size={20} color="#d97706" style={{ marginBottom: '4px' }} />
+                <div style={{ fontSize: '1.1rem', fontWeight: '700', color: '#92400e' }}>
+                  {gem.cached_footfall > 1000 ? (gem.cached_footfall / 1000).toFixed(1) + 'k' : gem.cached_footfall}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#a16207', fontWeight: '500' }}>Visitors</div>
+              </div>
+
+              <div style={{
+                background: '#ecfdf5',
+                borderRadius: '12px',
+                padding: '14px',
+                textAlign: 'center',
+                border: '1px solid #a7f3d0'
+              }}>
+                <Route size={20} color="#16a34a" style={{ marginBottom: '4px' }} />
+                <div style={{ fontSize: '1.1rem', fontWeight: '700', color: '#166534' }}>
+                  {gem.distanceFromCrowded?.toFixed(0)} km
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#15803d', fontWeight: '500' }}>Distance</div>
+              </div>
+
+              <div style={{
+                background: '#eff6ff',
+                borderRadius: '12px',
+                padding: '14px',
+                textAlign: 'center',
+                border: '1px solid #bfdbfe'
+              }}>
+                <Clock size={20} color="#2563eb" style={{ marginBottom: '4px' }} />
+                <div style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1e40af' }}>
+                  {travelTime}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#1d4ed8', fontWeight: '500' }}>Travel Time</div>
+              </div>
+            </div>
+
+            {/* Carbon Impact Badge */}
+            {carbonSaved > 0 && (
+              <div style={{
+                background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+                borderRadius: '12px',
+                padding: '14px 16px',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                border: '1px solid #86efac'
+              }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  background: '#22c55e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Leaf size={20} color="white" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: '700', color: '#166534', fontSize: '0.9rem' }}>
+                    Lower Carbon Footprint
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#15803d' }}>
+                    ~{carbonSaved}kg less CO₂ due to fewer crowds
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Route Info */}
+            <div style={{
+              background: '#f8fafc',
+              borderRadius: '14px',
+              padding: '16px',
+              marginBottom: '20px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{
+                fontWeight: '600',
+                color: '#475569',
+                fontSize: '0.8rem',
+                marginBottom: '12px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                Route from {fromPlace?.name}
+              </div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <div style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    background: '#ef4444',
+                    border: '2px solid #fecaca'
+                  }} />
+                  <div style={{
+                    width: '2px',
+                    height: '30px',
+                    background: 'linear-gradient(to bottom, #ef4444, #f59e0b)'
+                  }} />
+                  <div style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    background: '#f59e0b',
+                    border: '2px solid #fde68a'
+                  }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    color: '#dc2626',
+                    marginBottom: '8px'
+                  }}>
+                    {fromPlace?.name} <span style={{ fontWeight: '400', color: '#94a3b8' }}>(Crowded)</span>
+                  </div>
+                  <div style={{
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    color: '#d97706'
+                  }}>
+                    {gem.name} <span style={{ fontWeight: '400', color: '#94a3b8' }}>(Hidden Gem)</span>
+                  </div>
+                </div>
+                <Car size={24} color="#64748b" />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  flex: 1,
+                  padding: '14px 20px',
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontWeight: '700',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  textDecoration: 'none',
+                  boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <Map size={18} />
+                Open in Maps
+                <ExternalLink size={14} />
+              </a>
+              <button
+                onClick={() => {
+                  setSelectedPlace(gem);
+                  closeHiddenGemModal();
+                  setExpandedHiddenGemsId(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '14px 20px',
+                  background: 'white',
+                  color: '#d97706',
+                  border: '2px solid #fbbf24',
+                  borderRadius: '12px',
+                  fontWeight: '700',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <Star size={18} />
+                View Details
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* CSS Keyframes */}
+        <style>{`
+          @keyframes slideUp {
+            from { 
+              opacity: 0; 
+              transform: translateY(30px) scale(0.95); 
+            }
+            to { 
+              opacity: 1; 
+              transform: translateY(0) scale(1); 
+            }
+          }
+        `}</style>
+      </div>
+    );
+  };
+
   if (!data) return <div style={styles.loading}>Region Not Found</div>;
 
   return (
     <div style={styles.pageWrapper}>
+      {/* Hidden Gem Detail Modal */}
+      <HiddenGemModal />
 
       {/* 1. HERO */}
       <div style={styles.heroSection}>
@@ -1183,11 +1617,15 @@ const StateDetails = () => {
                       boxShadow: selectedPlace?.id === place.id
                         ? '0 12px 30px -8px rgba(59, 130, 246, 0.25)'
                         : '0 4px 15px rgba(0,0,0,0.05)',
-                      height: '280px',
+                      height: expandedHiddenGemsId === place.id ? 'auto' : '280px',
+                      minHeight: '280px',
+                      maxHeight: expandedHiddenGemsId === place.id ? '500px' : '280px',
                       minWidth: '280px',
                       flexShrink: 0,
                       display: 'flex',
-                      flexDirection: 'column'
+                      flexDirection: 'column',
+                      overflow: 'hidden',
+                      transition: 'all 0.3s ease'
                     }}
                   >
                     {/* Destination Image */}
@@ -1238,6 +1676,54 @@ const StateDetails = () => {
                       }}>
                         {place.description || 'Place'}
                       </div>
+
+                      {/* Overcrowded Warning Badge */}
+                      {isOvercrowded(place) && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '12px',
+                          left: '12px',
+                          fontSize: '0.6rem',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                          color: 'white',
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
+                        }}>
+                          <Users size={10} />
+                          Overcrowded
+                        </div>
+                      )}
+
+                      {/* Hidden Gem Badge - for less crowded places */}
+                      {place.cached_footfall < 10000 && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '12px',
+                          left: '12px',
+                          fontSize: '0.6rem',
+                          padding: '5px 10px',
+                          borderRadius: '8px',
+                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                          color: 'white',
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          boxShadow: '0 3px 10px rgba(245, 158, 11, 0.4)'
+                        }}>
+                          <Gem size={10} />
+                          Hidden Gem
+                        </div>
+                      )}
                     </div>
 
                     {/* Card Content */}
@@ -1290,6 +1776,157 @@ const StateDetails = () => {
                           {place.cached_footfall > 1000 ? (place.cached_footfall / 1000).toFixed(1) + 'k' : place.cached_footfall}
                         </div>
                       </div>
+
+                      {/* HIDDEN GEMS SECTION - Only for overcrowded places */}
+                      {isOvercrowded(place) && getHiddenGems(place).length > 0 && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedHiddenGemsId(expandedHiddenGemsId === place.id ? null : place.id);
+                            }}
+                            style={{
+                              marginTop: '12px',
+                              width: '100%',
+                              padding: '10px 14px',
+                              background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+                              border: '1px solid #fbbf24',
+                              borderRadius: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '8px',
+                              transition: 'all 0.3s ease',
+                              boxShadow: '0 2px 8px rgba(251, 191, 36, 0.15)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '8px',
+                                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 2px 4px rgba(245, 158, 11, 0.3)'
+                              }}>
+                                <Gem size={12} color="white" />
+                              </div>
+                              <span style={{
+                                fontSize: '0.75rem',
+                                fontWeight: '700',
+                                color: '#92400e',
+                                letterSpacing: '0.3px'
+                              }}>
+                                Discover Hidden Gems
+                              </span>
+                            </div>
+                            <ChevronRight
+                              size={16}
+                              color="#d97706"
+                              style={{
+                                transform: expandedHiddenGemsId === place.id ? 'rotate(90deg)' : 'rotate(0deg)',
+                                transition: 'transform 0.3s ease'
+                              }}
+                            />
+                          </button>
+
+                          {/* Expandable Hidden Gems Panel */}
+                          {expandedHiddenGemsId === place.id && (
+                            <div style={{
+                              marginTop: '10px',
+                              padding: '12px',
+                              background: 'linear-gradient(135deg, #fffbeb 0%, #fefce8 100%)',
+                              borderRadius: '12px',
+                              border: '1px solid #fde68a',
+                              animation: 'fadeIn 0.3s ease',
+                              boxShadow: '0 4px 12px rgba(251, 191, 36, 0.1)',
+                              maxHeight: '180px',
+                              overflowY: 'auto'
+                            }}>
+                              <div style={{
+                                fontSize: '0.7rem',
+                                color: '#92400e',
+                                marginBottom: '12px',
+                                fontWeight: '600',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}>
+                                <Sparkles size={12} color="#f59e0b" />
+                                Less crowded alternatives
+                              </div>
+                              {getHiddenGems(place).map((gem, idx) => (
+                                <div
+                                  key={gem.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openHiddenGemModal(gem, place);
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '8px 10px',
+                                    marginBottom: idx < getHiddenGems(place).length - 1 ? '6px' : 0,
+                                    background: 'white',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    border: '1px solid #e2e8f0',
+                                    transition: 'all 0.2s ease',
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = '#fef3c7';
+                                    e.currentTarget.style.borderColor = '#fbbf24';
+                                    e.currentTarget.style.transform = 'translateX(4px)';
+                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.2)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'white';
+                                    e.currentTarget.style.borderColor = '#fde68a';
+                                    e.currentTarget.style.transform = 'translateX(0)';
+                                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.04)';
+                                  }}
+                                >
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{
+                                      fontWeight: '600',
+                                      fontSize: '0.75rem',
+                                      color: '#1e293b',
+                                      marginBottom: '2px'
+                                    }}>
+                                      <Sparkles size={10} color="#f59e0b" style={{ marginRight: '4px' }} />
+                                      {gem.name}
+                                    </div>
+                                    <div style={{
+                                      fontSize: '0.65rem',
+                                      color: '#d97706',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '8px'
+                                    }}>
+                                      <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                        <Users size={10} />
+                                        {gem.cached_footfall > 1000 ? (gem.cached_footfall / 1000).toFixed(1) + 'k' : gem.cached_footfall}
+                                      </span>
+                                      <span style={{ color: '#94a3b8' }}>•</span>
+                                      <span style={{ color: '#64748b' }}>
+                                        {gem.distanceFromCrowded.toFixed(0)} km away
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <ChevronRight size={12} color="#d97706" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 ))
@@ -1348,6 +1985,117 @@ const StateDetails = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Hidden Gems Suggestions in Calculator - for overcrowded places */}
+                  {isOvercrowded(selectedPlace) && getHiddenGems(selectedPlace).length > 0 && (
+                    <div style={{
+                      marginTop: '20px',
+                      padding: '18px',
+                      background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+                      borderRadius: '16px',
+                      border: '1px solid #fbbf24',
+                      boxShadow: '0 4px 15px rgba(251, 191, 36, 0.15)'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        marginBottom: '14px'
+                      }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '10px',
+                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 3px 8px rgba(245, 158, 11, 0.3)'
+                        }}>
+                          <Gem size={16} color="white" />
+                        </div>
+                        <span style={{
+                          fontWeight: '700',
+                          fontSize: '0.9rem',
+                          color: '#92400e'
+                        }}>
+                          Discover Hidden Gems
+                        </span>
+                      </div>
+                      <div style={{
+                        fontSize: '0.75rem',
+                        color: '#a16207',
+                        marginBottom: '14px',
+                        lineHeight: '1.4'
+                      }}>
+                        <strong>{selectedPlace.name}</strong> is crowded! Explore these peaceful alternatives:
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {getHiddenGems(selectedPlace).map((gem) => (
+                          <div
+                            key={gem.id}
+                            onClick={() => openHiddenGemModal(gem, selectedPlace)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '12px 14px',
+                              background: 'white',
+                              borderRadius: '12px',
+                              cursor: 'pointer',
+                              border: '1px solid #fde68a',
+                              transition: 'all 0.3s ease',
+                              boxShadow: '0 2px 6px rgba(251, 191, 36, 0.1)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#fef3c7';
+                              e.currentTarget.style.transform = 'translateX(6px)';
+                              e.currentTarget.style.boxShadow = '0 6px 16px rgba(251, 191, 36, 0.2)';
+                              e.currentTarget.style.borderColor = '#fbbf24';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'white';
+                              e.currentTarget.style.transform = 'translateX(0)';
+                              e.currentTarget.style.boxShadow = '0 2px 6px rgba(251, 191, 36, 0.1)';
+                              e.currentTarget.style.borderColor = '#fde68a';
+                            }}
+                          >
+                            <div>
+                              <div style={{
+                                fontWeight: '600',
+                                fontSize: '0.9rem',
+                                color: '#1e293b',
+                                marginBottom: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}>
+                                <Sparkles size={14} color="#f59e0b" />
+                                {gem.name}
+                              </div>
+                              <div style={{
+                                fontSize: '0.75rem',
+                                color: '#64748b',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px'
+                              }}>
+                                <span style={{ color: '#d97706', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                  <Users size={11} />
+                                  {gem.cached_footfall > 1000 ? (gem.cached_footfall / 1000).toFixed(1) + 'k' : gem.cached_footfall}
+                                </span>
+                                <span style={{ color: '#cbd5e1' }}>•</span>
+                                <span>{gem.distanceFromCrowded.toFixed(0)} km</span>
+                                <span style={{ color: '#cbd5e1' }}>•</span>
+                                <span style={{ color: '#64748b' }}>{gem.description}</span>
+                              </div>
+                            </div>
+                            <ChevronRight size={16} color="#d97706" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: '10px' }}>
@@ -1394,6 +2142,18 @@ const StateDetails = () => {
         .place-card-hover:hover {
           transform: translateY(-8px) scale(1.02);
           box-shadow: 0 20px 40px -10px rgba(59, 130, 246, 0.3);
+        }
+        
+        /* Hidden Gems FadeIn Animation */
+        @keyframes fadeIn {
+          from { 
+            opacity: 0; 
+            transform: translateY(-8px); 
+          }
+          to { 
+            opacity: 1; 
+            transform: translateY(0); 
+          }
         }
         
         /* Shimmer Loading Effect */
