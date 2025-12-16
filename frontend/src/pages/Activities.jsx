@@ -207,7 +207,7 @@ function Activities() {
     const headingObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          setTimeout(() => setHeadingVisible(true), 200);
+          setHeadingVisible(true);
         }
       });
     }, observerOptions);
@@ -215,7 +215,7 @@ function Activities() {
     const menuObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          setTimeout(() => setMenuVisible(true), 600);
+          setMenuVisible(true);
         }
       });
     }, observerOptions);
@@ -223,7 +223,7 @@ function Activities() {
     const cardsObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          setTimeout(() => setCardsVisible(true), 1000);
+          setCardsVisible(true);
         }
       });
     }, observerOptions);

@@ -1,5 +1,6 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { preloadRoute } from "../utils/preloadRoutes";
 import {
   Compass,
   MapPin,
@@ -23,6 +24,9 @@ import {
 } from "lucide-react";
 
 export default function Footer() {
+  const location = useLocation();
+  const isHomePage = location.pathname === "/";
+
   const socialLinks = [
     { name: "Instagram", icon: <Instagram className="w-5 h-5" />, href: "#" },
     { name: "Twitter", icon: <Twitter className="w-5 h-5" />, href: "#" },
@@ -46,38 +50,40 @@ export default function Footer() {
 
   return (
     <footer className="relative bg-gradient-to-br from-slate-900 via-gray-900 to-black text-white">
-      {/* Newsletter Section */}
-      <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 py-16">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center">
-            <div className="flex justify-center mb-6">
-              <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl">
-                <Send className="w-8 h-8 text-white" />
+      {/* Newsletter Section - Only show on home page */}
+      {isHomePage && (
+        <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 py-16">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="text-center">
+              <div className="flex justify-center mb-6">
+                <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl">
+                  <Send className="w-8 h-8 text-white" />
+                </div>
               </div>
-            </div>
-            <h3 className="text-4xl font-bold text-white mb-4">
-              Never Miss Your Next Adventure
-            </h3>
-            <p className="text-orange-100 mb-8 max-w-2xl mx-auto text-lg">
-              Get AI-curated travel insights, exclusive destination guides, and personalized recommendations
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto">
-              <div className="relative flex-1">
-                <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="email"
-                  placeholder="Enter your email address"
-                  className="w-full pl-12 pr-4 py-4 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-white/50 bg-white/95 backdrop-blur-sm"
-                />
+              <h3 className="text-4xl font-bold text-white mb-4">
+                Never Miss Your Next Adventure
+              </h3>
+              <p className="text-orange-100 mb-8 max-w-2xl mx-auto text-lg">
+                Get AI-curated travel insights, exclusive destination guides, and personalized recommendations
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto">
+                <div className="relative flex-1">
+                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="email"
+                    placeholder="Enter your email address"
+                    className="w-full pl-12 pr-4 py-4 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-white/50 bg-white/95 backdrop-blur-sm"
+                  />
+                </div>
+                <button className="bg-white text-orange-600 font-bold px-8 py-4 rounded-xl hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center justify-center gap-2">
+                  <Sparkles className="w-5 h-5" />
+                  Subscribe
+                </button>
               </div>
-              <button className="bg-white text-orange-600 font-bold px-8 py-4 rounded-xl hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center justify-center gap-2">
-                <Sparkles className="w-5 h-5" />
-                Subscribe
-              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Footer Content */}
       <div className="py-16 px-6">
@@ -121,7 +127,11 @@ export default function Footer() {
               <ul className="space-y-3">
                 {quickLinks.map((link, index) => (
                   <li key={index}>
-                    <Link to={link.path} className="flex items-center gap-3 text-gray-400 hover:text-amber-400 transition-colors group">
+                    <Link
+                      to={link.path}
+                      className="flex items-center gap-3 text-gray-400 hover:text-amber-400 transition-colors group"
+                      onMouseEnter={() => preloadRoute(link.path)}
+                    >
                       <span className="text-orange-400 group-hover:text-amber-400 transition-colors">
                         {link.icon}
                       </span>
@@ -141,7 +151,11 @@ export default function Footer() {
               <ul className="space-y-3">
                 {travelLinks.map((link, index) => (
                   <li key={index}>
-                    <Link to={link.path} className="flex items-center gap-3 text-gray-400 hover:text-amber-400 transition-colors group">
+                    <Link
+                      to={link.path}
+                      className="flex items-center gap-3 text-gray-400 hover:text-amber-400 transition-colors group"
+                      onMouseEnter={() => preloadRoute(link.path)}
+                    >
                       <span className="text-orange-400 group-hover:text-amber-400 transition-colors">
                         {link.icon}
                       </span>

@@ -29,19 +29,20 @@
 
 // export default App;
 
-import React, { useState, useEffect, Suspense } from 'react'; // Import Hooks
-import { Routes, Route, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, Suspense } from 'react';
+import { Routes, Route, useLocation, BrowserRouter } from 'react-router-dom';
 import Home from './pages/Home';
 import { getMapFromDB, saveMapToDB } from "./utils/ContextManager";
 import { AuthProvider } from './contexts/AuthContext';
+import { NavigationProvider, NavigationLoader } from './contexts/NavigationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
-// Layout Components
+// Layout Components - import normally for faster initial load
 const Navigation = React.lazy(() => import('./pages/navigation'));
 const Footer = React.lazy(() => import('./pages/Footer'));
 
-// Lazy load heavy components for faster initial load and navigation
+// Lazy load page components
 const ChatPage = React.lazy(() => import('./pages/ChatPage'));
 const India3D = React.lazy(() => import('./SpecsPages/India3D'));
 const StateDetails = React.lazy(() => import('./SpecsPages/StateDetails'));
@@ -52,20 +53,26 @@ const OnboardingPage = React.lazy(() => import('./pages/OnboardingPage'));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 const ItineraryPlanner = React.lazy(() => import('./pages/ItineraryPlanner'));
 
-// Prefetch common routes after initial load for faster navigation
-const prefetchRoutes = () => {
-  // Use requestIdleCallback for non-blocking prefetch
-  const prefetch = window.requestIdleCallback || setTimeout;
-
-  prefetch(() => {
-    // Prefetch most commonly navigated pages
-    import('./SpecsPages/India3D');
-    import('./pages/ChatPage');
-    import('./pages/ItineraryPlanner');
-    import('./pages/navigation');
-    import('./pages/Footer');
-  }, { timeout: 3000 });
+// IMMEDIATELY prefetch all routes on module load for zero navigation delay
+const prefetchAllRoutes = () => {
+  // Start prefetching immediately - don't wait
+  Promise.all([
+    import('./SpecsPages/India3D'),
+    import('./pages/ChatPage'),
+    import('./pages/ItineraryPlanner'),
+    import('./pages/ProfilePage'),
+    import('./pages/AuthPage'),
+    import('./pages/OnboardingPage'),
+    import('./SpecsComponent/TravelDashboard'),
+    import('./SpecsComponent/Foot'),
+    import('./SpecsPages/StateDetails'),
+    import('./pages/navigation'),
+    import('./pages/Footer'),
+  ]).catch(() => { }); // Silently handle any errors
 };
+
+// Prefetch immediately when this module loads
+prefetchAllRoutes();
 
 // Activity tracking component
 import { useActivityTracker } from './hooks/useActivityTracker';
@@ -73,7 +80,57 @@ import { useXPManager } from './hooks/useXPManager';
 const ActivityTracker = () => { useActivityTracker(); return null; };
 const XPManager = () => { useXPManager(); return null; };
 
-// Loading spinner component
+// Common Page Transition Loader - consistent across all transitions
+const PageTransitionLoader = () => (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fff7ed 100%)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999,
+    gap: '16px'
+  }}>
+    <div style={{
+      width: '50px',
+      height: '50px',
+      borderRadius: '16px',
+      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 8px 30px rgba(245, 158, 11, 0.3)',
+      animation: 'navPulse 1.5s ease-in-out infinite'
+    }}>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <circle cx="12" cy="12" r="10" strokeOpacity="0.3" />
+        <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round">
+          <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.7s" repeatCount="indefinite" />
+        </path>
+      </svg>
+    </div>
+    <p style={{
+      color: '#92400e',
+      fontSize: '0.9rem',
+      fontWeight: '600',
+      letterSpacing: '0.5px',
+      margin: 0
+    }}>Loading...</p>
+    <style>{`
+      @keyframes navPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+    `}</style>
+  </div>
+);
+
+// Initial Loading spinner (only for first app load)
 const LoadingSpinner = () => (
   <div style={{
     width: '100%',
@@ -108,93 +165,18 @@ const LoadingSpinner = () => (
   </div>
 );
 
-// Page Transition Loader - Shows during navigation between pages
-const PageTransitionLoader = () => (
-  <div style={{
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fff7ed 100%)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 9999,
-    gap: '16px'
-  }}>
-    {/* Animated logo/spinner */}
-    <div style={{
-      width: '50px',
-      height: '50px',
-      borderRadius: '16px',
-      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      boxShadow: '0 8px 30px rgba(245, 158, 11, 0.3)',
-      animation: 'pulse 1.5s ease-in-out infinite'
-    }}>
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-        <circle cx="12" cy="12" r="10" strokeOpacity="0.3" />
-        <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round">
-          <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" />
-        </path>
-      </svg>
-    </div>
-    <p style={{
-      color: '#92400e',
-      fontSize: '0.9rem',
-      fontWeight: '600',
-      letterSpacing: '0.5px',
-      margin: 0
-    }}>Loading page...</p>
-    <style>{`
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-      }
-    `}</style>
-  </div>
-);
-
-// Route Change Loader - Shows briefly when navigating between pages
-const RouteChangeLoader = () => {
-  const location = useLocation();
-  const [isLoading, setIsLoading] = useState(false);
-  const prevPathRef = React.useRef(location.pathname);
-
-  useEffect(() => {
-    // Only show loader if path actually changed (not on initial mount)
-    if (prevPathRef.current !== location.pathname) {
-      setIsLoading(true);
-      prevPathRef.current = location.pathname;
-
-      // Hide loader after brief delay
-      const timer = setTimeout(() => setIsLoading(false), 400);
-      return () => clearTimeout(timer);
-    }
-  }, [location.pathname]);
-
-  // Never show on initial load
-  if (!isLoading) return null;
-
-  return <PageTransitionLoader />;
-};
-
 // Layout component with Navigation and Footer
 const Layout = ({ children }) => {
   const location = useLocation();
 
-  // Pages that should NOT have the global header/footer (they have their own)
+  // Pages that should NOT have the global header/footer
   const noLayoutPages = ['/auth', '/onboarding', '/', '/chat'];
   const showLayout = !noLayoutPages.includes(location.pathname);
 
   return (
     <>
-      {/* Route change loader - shows immediately on navigation */}
-      <RouteChangeLoader />
+      {/* Navigation Loader - shows during all route changes */}
+      <NavigationLoader />
 
       {showLayout && (
         <Suspense fallback={null}>
@@ -203,7 +185,7 @@ const Layout = ({ children }) => {
       )}
       <main style={{
         minHeight: showLayout ? 'calc(100vh - 60px)' : '100vh',
-        paddingTop: showLayout ? '60px' : '0' // Account for fixed header
+        paddingTop: showLayout ? '60px' : '0'
       }}>
         <Suspense fallback={<PageTransitionLoader />}>
           {children}
@@ -221,10 +203,8 @@ const Layout = ({ children }) => {
 const INDIA_MAP_URL = "https://raw.githubusercontent.com/geohacker/india/master/state/india_telengana.geojson";
 
 function App() {
-  // 1. Store the map data at the top level
   const [indiaGeoData, setIndiaGeoData] = useState(null);
 
-  // 2. Fetch it ONCE when the website loads
   useEffect(() => {
     const initMap = async () => {
       try {
@@ -240,40 +220,35 @@ function App() {
       } catch (e) { console.error("Map Load Failed", e); }
     };
     initMap();
-
-    // Prefetch common routes after 2 seconds for faster navigation
-    const prefetchTimer = setTimeout(() => {
-      prefetchRoutes();
-    }, 2000);
-
-    return () => clearTimeout(prefetchTimer);
   }, []);
 
   return (
     <AuthProvider>
-      <ActivityTracker />
-      <XPManager />
-      <div className='w-full h-full m-0 p-0'>
-        <Suspense fallback={<LoadingSpinner />}>
-          <Layout>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/auth" element={<AuthPage />} />
+      <NavigationProvider>
+        <ActivityTracker />
+        <XPManager />
+        <div className='w-full h-full m-0 p-0'>
+          <Suspense fallback={<LoadingSpinner />}>
+            <Layout>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/auth" element={<AuthPage />} />
 
-              {/* Protected Routes */}
-              <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-              <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-              <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-              <Route path="/foot" element={<ProtectedRoute><RegionalDashboard /></ProtectedRoute>} />
-              <Route path="/booking" element={<ProtectedRoute><TravelDashboard /></ProtectedRoute>} />
-              <Route path="/itinerary" element={<ProtectedRoute><ItineraryPlanner /></ProtectedRoute>} />
-              <Route path="/map" element={<ProtectedRoute><India3D /></ProtectedRoute>} />
-              <Route path="/map/:stateName" element={<ProtectedRoute><StateDetails /></ProtectedRoute>} />
-            </Routes>
-          </Layout>
-        </Suspense>
-      </div>
+                {/* Protected Routes */}
+                <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+                <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+                <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+                <Route path="/foot" element={<ProtectedRoute><RegionalDashboard /></ProtectedRoute>} />
+                <Route path="/booking" element={<ProtectedRoute><TravelDashboard /></ProtectedRoute>} />
+                <Route path="/itinerary" element={<ProtectedRoute><ItineraryPlanner /></ProtectedRoute>} />
+                <Route path="/map" element={<ProtectedRoute><India3D /></ProtectedRoute>} />
+                <Route path="/map/:stateName" element={<ProtectedRoute><StateDetails /></ProtectedRoute>} />
+              </Routes>
+            </Layout>
+          </Suspense>
+        </div>
+      </NavigationProvider>
     </AuthProvider>
   );
 }

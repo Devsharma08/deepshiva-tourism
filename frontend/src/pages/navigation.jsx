@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FiAlignLeft } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { preloadRoute } from "../utils/preloadRoutes";
 
 function Navigation() {
   const [scrolled, setScrolled] = useState(false);
@@ -30,8 +31,8 @@ function Navigation() {
       {/* Main navigation */}
       <nav
         className={`flex items-center justify-between px-6 py-3 text-sm font-Archivo transition-all duration-300 ${scrolled
-            ? "bg-white/90 backdrop-blur-md shadow-md"
-            : "bg-gray-900/20 backdrop-blur-md"
+          ? "bg-white/90 backdrop-blur-md shadow-md"
+          : "bg-gray-900/20 backdrop-blur-md"
           }`}
       >
         {/* Left menu items */}
@@ -65,7 +66,7 @@ function Navigation() {
             <a href="#activities" className="hover:text-amber-700">
               Activities
             </a>
-            <Link to={'/booking'} className="hover:text-amber-700">
+            <Link to={'/booking'} className="hover:text-amber-700" onMouseEnter={() => preloadRoute('/booking')}>
               Accommodation and Flight
             </Link>
             <a href="#plan-trip" className="hover:text-amber-700">
@@ -79,6 +80,7 @@ function Navigation() {
           {isAuthenticated ? (
             <button
               onClick={() => navigate('/profile')}
+              onMouseEnter={() => preloadRoute('/profile')}
               className="flex items-center gap-2 group"
             >
               <img
@@ -91,9 +93,10 @@ function Navigation() {
             <Link
               to="/auth"
               className={`px-4 py-2 rounded-full font-medium transition-all ${scrolled
-                  ? 'bg-orange-500 text-white hover:bg-orange-600'
-                  : 'bg-white/20 text-white hover:bg-white/30'
+                ? 'bg-orange-500 text-white hover:bg-orange-600'
+                : 'bg-white/20 text-white hover:bg-white/30'
                 }`}
+              onMouseEnter={() => preloadRoute('/auth')}
             >
               Sign In
             </Link>

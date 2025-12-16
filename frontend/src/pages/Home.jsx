@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { preloadRoute } from "../utils/preloadRoutes";
 import Navigation from "./navigation";
 import CardsSection from "./CardSection";
 import TravelDestination from "./TravelDestination";
@@ -333,6 +334,7 @@ function Home() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
             <button
               onClick={() => navigate('/itinerary')}
+              onMouseEnter={() => preloadRoute('/itinerary')}
               className="group bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl"
             >
               <span className="flex items-center gap-3">
@@ -345,6 +347,7 @@ function Home() {
 
             <button
               onClick={() => navigate('/chat')}
+              onMouseEnter={() => preloadRoute('/chat')}
               className="group bg-white hover:bg-gray-50 text-gray-700 px-8 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 border-2 border-gray-200 hover:border-orange-300 shadow-lg hover:shadow-xl"
             >
               <span className="flex items-center gap-3">
