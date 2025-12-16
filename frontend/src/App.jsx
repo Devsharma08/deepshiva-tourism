@@ -52,6 +52,21 @@ const OnboardingPage = React.lazy(() => import('./pages/OnboardingPage'));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 const ItineraryPlanner = React.lazy(() => import('./pages/ItineraryPlanner'));
 
+// Prefetch common routes after initial load for faster navigation
+const prefetchRoutes = () => {
+  // Use requestIdleCallback for non-blocking prefetch
+  const prefetch = window.requestIdleCallback || setTimeout;
+
+  prefetch(() => {
+    // Prefetch most commonly navigated pages
+    import('./SpecsPages/India3D');
+    import('./pages/ChatPage');
+    import('./pages/ItineraryPlanner');
+    import('./pages/navigation');
+    import('./pages/Footer');
+  }, { timeout: 3000 });
+};
+
 // Activity tracking component
 import { useActivityTracker } from './hooks/useActivityTracker';
 import { useXPManager } from './hooks/useXPManager';
@@ -93,16 +108,94 @@ const LoadingSpinner = () => (
   </div>
 );
 
+// Page Transition Loader - Shows during navigation between pages
+const PageTransitionLoader = () => (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fff7ed 100%)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+    gap: '16px'
+  }}>
+    {/* Animated logo/spinner */}
+    <div style={{
+      width: '50px',
+      height: '50px',
+      borderRadius: '16px',
+      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 8px 30px rgba(245, 158, 11, 0.3)',
+      animation: 'pulse 1.5s ease-in-out infinite'
+    }}>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <circle cx="12" cy="12" r="10" strokeOpacity="0.3" />
+        <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round">
+          <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" />
+        </path>
+      </svg>
+    </div>
+    <p style={{
+      color: '#92400e',
+      fontSize: '0.9rem',
+      fontWeight: '600',
+      letterSpacing: '0.5px',
+      margin: 0
+    }}>Loading page...</p>
+    <style>{`
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+    `}</style>
+  </div>
+);
+
+// Route Change Loader - Shows briefly when navigating between pages
+const RouteChangeLoader = () => {
+  const location = useLocation();
+  const [isLoading, setIsLoading] = useState(false);
+  const prevPathRef = React.useRef(location.pathname);
+
+  useEffect(() => {
+    // Only show loader if path actually changed (not on initial mount)
+    if (prevPathRef.current !== location.pathname) {
+      setIsLoading(true);
+      prevPathRef.current = location.pathname;
+
+      // Hide loader after brief delay
+      const timer = setTimeout(() => setIsLoading(false), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname]);
+
+  // Never show on initial load
+  if (!isLoading) return null;
+
+  return <PageTransitionLoader />;
+};
+
 // Layout component with Navigation and Footer
 const Layout = ({ children }) => {
   const location = useLocation();
 
   // Pages that should NOT have the global header/footer (they have their own)
-  const noLayoutPages = ['/auth', '/onboarding', '/'];
+  const noLayoutPages = ['/auth', '/onboarding', '/', '/chat'];
   const showLayout = !noLayoutPages.includes(location.pathname);
 
   return (
     <>
+      {/* Route change loader - shows immediately on navigation */}
+      <RouteChangeLoader />
+
       {showLayout && (
         <Suspense fallback={null}>
           <Navigation />
@@ -112,7 +205,9 @@ const Layout = ({ children }) => {
         minHeight: showLayout ? 'calc(100vh - 60px)' : '100vh',
         paddingTop: showLayout ? '60px' : '0' // Account for fixed header
       }}>
-        {children}
+        <Suspense fallback={<PageTransitionLoader />}>
+          {children}
+        </Suspense>
       </main>
       {showLayout && (
         <Suspense fallback={null}>
@@ -145,6 +240,13 @@ function App() {
       } catch (e) { console.error("Map Load Failed", e); }
     };
     initMap();
+
+    // Prefetch common routes after 2 seconds for faster navigation
+    const prefetchTimer = setTimeout(() => {
+      prefetchRoutes();
+    }, 2000);
+
+    return () => clearTimeout(prefetchTimer);
   }, []);
 
   return (
