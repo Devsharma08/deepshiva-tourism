@@ -398,17 +398,100 @@ function parseResponse(text) {
 
   let parsed = text;
 
-  // Clean up common formatting issues
-  parsed = parsed.replace(/\*\*,\*\*/g, ',');  // Fix **,** patterns
-  parsed = parsed.replace(/\*\*\s*\*\*/g, ''); // Remove empty bold
-  parsed = parsed.replace(/\n{3,}/g, '\n\n');  // Max 2 newlines
-  parsed = parsed.replace(/^\s+|\s+$/g, '');   // Trim whitespace
+  // === STEP 1: Clean up common LLM formatting issues ===
+  parsed = parsed.replace(/\*\*,\*\*/g, ',');           // Fix **,** patterns
+  parsed = parsed.replace(/\*\*\s*\*\*/g, '');          // Remove empty bold
+  parsed = parsed.replace(/\n{4,}/g, '\n\n\n');         // Max 3 newlines
+  parsed = parsed.replace(/^\s+|\s+$/g, '');            // Trim whitespace
 
-  // Ensure proper spacing after emojis
-  parsed = parsed.replace(/([🌟💧❇️✨🌱🌺🏔️🌄🏖️🛕🕉️🇮🇳🙏])(\w)/g, '$1 $2');
+  // === STEP 2: Ensure headings are bold ===
+  // Common heading patterns to bold
+  const headingPatterns = [
+    /^(Nainital['']?s Charm:?)/gmi,
+    /^(Must-Visit Sites:?)/gmi,
+    /^(Nearby Attractions:?)/gmi,
+    /^(Travel Tips:?)/gmi,
+    /^(Conclusion:?)/gmi,
+    /^(Best Time to Visit:?)/gmi,
+    /^(Getting There:?)/gmi,
+    /^(Where to Stay:?)/gmi,
+    /^(Local Cuisine:?)/gmi,
+    /^(Things to Do:?)/gmi,
+    /^(Budget Tips:?)/gmi,
+    /^(Safety Tips:?)/gmi,
+    /^(Pro Tips?:?)/gmi,
+    /^(Highlights:?)/gmi,
+    /^(Overview:?)/gmi,
+    /^(About .+:?)/gmi,
+    /^(.+'s Charm:?)/gmi,
+    /^(Key Attractions:?)/gmi,
+    /^(Top Attractions:?)/gmi,
+    /^(Hidden Gems:?)/gmi,
+    /^(Quick Facts:?)/gmi,
+    /^(Cultural Significance:?)/gmi,
+    /^(Adventure Activities:?)/gmi,
+    /^(Spiritual Significance:?)/gmi,
+  ];
 
-  // Remove trailing signature if present
+  headingPatterns.forEach(pattern => {
+    parsed = parsed.replace(pattern, (match) => {
+      // Don't double-bold
+      if (match.startsWith('**')) return match;
+      return `**${match.trim()}**`;
+    });
+  });
+
+  // === STEP 3: Format section headers with emoji ===
+  // Add emoji to section headers if missing
+  parsed = parsed.replace(/^\*\*Must-Visit Sites:?\*\*/gmi, '**🌟 Must-Visit Sites:**');
+  parsed = parsed.replace(/^\*\*Nearby Attractions:?\*\*/gmi, '**🗺️ Nearby Attractions:**');
+  parsed = parsed.replace(/^\*\*Travel Tips:?\*\*/gmi, '**💡 Travel Tips:**');
+  parsed = parsed.replace(/^\*\*Best Time to Visit:?\*\*/gmi, '**📅 Best Time to Visit:**');
+  parsed = parsed.replace(/^\*\*Where to Stay:?\*\*/gmi, '**🏨 Where to Stay:**');
+  parsed = parsed.replace(/^\*\*Local Cuisine:?\*\*/gmi, '**🍽️ Local Cuisine:**');
+  parsed = parsed.replace(/^\*\*Getting There:?\*\*/gmi, '**🚗 Getting There:**');
+  parsed = parsed.replace(/^\*\*Budget Tips:?\*\*/gmi, '**💰 Budget Tips:**');
+  parsed = parsed.replace(/^\*\*Conclusion:?\*\*/gmi, '**✨ Conclusion:**');
+  parsed = parsed.replace(/^\*\*Highlights:?\*\*/gmi, '**⭐ Highlights:**');
+  parsed = parsed.replace(/^\*\*Hidden Gems:?\*\*/gmi, '**💎 Hidden Gems:**');
+  parsed = parsed.replace(/^\*\*Adventure Activities:?\*\*/gmi, '**🧗 Adventure Activities:**');
+  parsed = parsed.replace(/^\*\*Cultural Significance:?\*\*/gmi, '**🏛️ Cultural Significance:**');
+  parsed = parsed.replace(/^\*\*Spiritual Significance:?\*\*/gmi, '**🙏 Spiritual Significance:**');
+
+  // === STEP 4: Format numbered lists properly ===
+  // Ensure numbered items have proper formatting
+  parsed = parsed.replace(/^(\d+)\.\s*\*\*([^*]+)\*\*:?\s*/gm, '$1. **$2:** ');
+
+  // Add line breaks before numbered items if not present
+  parsed = parsed.replace(/([^\n])(\n\d+\.)/g, '$1\n$2');
+
+  // === STEP 5: Format bullet points ===
+  parsed = parsed.replace(/^[-•]\s*/gm, '• ');
+
+  // Ensure space after bullet points
+  parsed = parsed.replace(/^•\s*\*\*([^*]+)\*\*/gm, '• **$1**');
+
+  // === STEP 6: Ensure proper spacing after emojis ===
+  const emojiRegex = /([\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}])(\w)/gu;
+  parsed = parsed.replace(emojiRegex, '$1 $2');
+
+  // === STEP 7: Clean up excessive punctuation ===
+  parsed = parsed.replace(/:\s*:/g, ':');
+  parsed = parsed.replace(/\*\*:\s*\*\*/g, '**');
+  parsed = parsed.replace(/\*\*\s+\*\*/g, ' ');
+
+  // === STEP 8: Add section breaks for readability ===
+  // Add blank line before major sections
+  parsed = parsed.replace(/([^\n])\n(\*\*[🌟🗺️💡📅🏨🍽️🚗💰✨⭐💎🧗🏛️🙏])/g, '$1\n\n$2');
+
+  // === STEP 9: Remove trailing signatures ===
   parsed = parsed.replace(/\*\*Your ever-excited.*?🇮🇳\*\*|\[Next Stop:.*?\]/gi, '');
+  parsed = parsed.replace(/---\s*\*\*Treveor\*\*.*$/gis, '');
+  parsed = parsed.replace(/\n*Happy travels!?\s*[🌟✨🇮🇳]*\s*$/gi, '\n\n_Happy travels!_ 🌟🇮🇳');
+
+  // === STEP 10: Final cleanup ===
+  parsed = parsed.replace(/\n{4,}/g, '\n\n\n');  // Max 3 newlines
+  parsed = parsed.replace(/^\s+|\s+$/g, '');     // Trim
 
   return parsed.trim();
 }
