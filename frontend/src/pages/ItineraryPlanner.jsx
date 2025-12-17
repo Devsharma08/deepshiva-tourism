@@ -5,6 +5,7 @@ import DestinationPanel from '../components/itinerary/DestinationPanel';
 import TimelineView from '../components/itinerary/TimelineView';
 import MapView from '../components/itinerary/MapView';
 import DetailsPanel from '../components/itinerary/DetailsPanel';
+import ItineraryChatPopup, { ItineraryChatButton } from '../components/itinerary/ItineraryChatPopup';
 
 // Rich sample destinations data with Indian tourism focus
 const sampleDestinations = [
@@ -184,6 +185,7 @@ function ItineraryPlanner() {
     const [isOptimizing, setIsOptimizing] = useState(false);
     const [showDetailsPanel, setShowDetailsPanel] = useState(false);
     const [notification, setNotification] = useState(null);
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
     // Scroll to top when component mounts
     useEffect(() => {
@@ -595,6 +597,19 @@ function ItineraryPlanner() {
                     }}
                 />
             )}
+
+            {/* Chat Button - Bottom Left */}
+            {!isChatOpen && (
+                <ItineraryChatButton onClick={() => setIsChatOpen(true)} />
+            )}
+
+            {/* Chat Popup */}
+            <ItineraryChatPopup
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+                tripContext={tripContext}
+                destinations={destinations}
+            />
         </div>
     );
 }

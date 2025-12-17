@@ -736,7 +736,7 @@ import { cachedFetch } from "../utils/ContextManager";
 
 // --- CONFIG ---
 const API_URL = "http://localhost:5000/api/destinations"; // Corrected Port
-const WEATHER_KEY = "bd5e378503939ddaee76f12ad7a97608";
+const WEATHER_KEY = "6246e1dda8a33a425ad62d2b9812b0a9";
 
 // --- WIKIMEDIA SERVICE IMPORT ---
 import { getIndiaLocationImage, getImageUrl, getPlaceholderImage } from '../utils/wikimediaService';
@@ -1556,8 +1556,6 @@ const StateDetails = () => {
                     <div key={i} style={{
                       ...styles.placeCard,
                       height: '280px',
-                      minWidth: '280px',
-                      flexShrink: 0,
                       background: 'linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%)',
                       backgroundSize: '200% 100%',
                       animation: 'shimmer 1.5s infinite'
@@ -1620,12 +1618,11 @@ const StateDetails = () => {
                       height: expandedHiddenGemsId === place.id ? 'auto' : '280px',
                       minHeight: '280px',
                       maxHeight: expandedHiddenGemsId === place.id ? '500px' : '280px',
-                      minWidth: '280px',
-                      flexShrink: 0,
                       display: 'flex',
                       flexDirection: 'column',
                       overflow: 'hidden',
-                      transition: 'all 0.3s ease'
+                      transition: 'all 0.3s ease',
+                      border: '1px solid #e2e8f0'
                     }}
                   >
                     {/* Destination Image */}
@@ -2599,11 +2596,9 @@ const styles = {
   },
   plannerList: {
     flex: "2",
-    display: "flex",
-    flexDirection: "row",
-    flexWrap: "nowrap",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
     gap: "20px",
-    overflowX: "auto",
     paddingBottom: "15px",
   },
 

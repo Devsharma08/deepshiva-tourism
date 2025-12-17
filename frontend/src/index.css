@@ -630,6 +630,18 @@ body {
   animation-name: slideInFromBottom;
 }
 
+.slide-in-from-bottom-5 {
+  animation-name: slideInFromBottom;
+}
+
+.slide-in-from-right-5 {
+  animation-name: slideInFromRight;
+}
+
+.duration-300 {
+  animation-duration: 0.3s;
+}
+
 /* Gradient shimmer effect for loading */
 @keyframes shimmer {
   0% {
