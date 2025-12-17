@@ -113,31 +113,48 @@ function Activities() {
     fetchActivities();
   }, []);
 
+  // Track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Auto-scroll functionality
   useEffect(() => {
     if (!isAutoScrolling) return;
 
     const menuIds = ["adventure", "water", "wellness", "food", "camping"];
+    let transitionTimeoutId = null;
 
     const startAutoScroll = () => {
-      console.log("Starting auto-scroll..."); // Debug log
+      if (!isMountedRef.current) return;
 
       // Reset progress animation by changing key
       setProgressKey(prev => prev + 1);
 
       autoScrollRef.current = setInterval(() => {
+        if (!isMountedRef.current) {
+          clearInterval(autoScrollRef.current);
+          return;
+        }
+
         setActive(currentActive => {
           const currentIndex = menuIds.indexOf(currentActive);
           const nextIndex = (currentIndex + 1) % menuIds.length;
           const nextActiveId = menuIds[nextIndex];
-          console.log(`Auto-scroll: ${currentActive} -> ${nextActiveId}`); // Debug log
 
           // Start transition animation
           setIsTransitioning(true);
           setNextActive(nextActiveId);
 
           // Complete transition after animation
-          setTimeout(() => {
+          transitionTimeoutId = setTimeout(() => {
+            if (!isMountedRef.current) return;
             setIsTransitioning(false);
             setNextActive(null);
             // Reset progress animation for next cycle
@@ -150,12 +167,16 @@ function Activities() {
     };
 
     // Start auto-scroll after initial animations complete
-    const timer = setTimeout(startAutoScroll, 2000);
+    const timer = setTimeout(startAutoScroll, 500);
 
     return () => {
       clearTimeout(timer);
+      if (transitionTimeoutId) {
+        clearTimeout(transitionTimeoutId);
+      }
       if (autoScrollRef.current) {
         clearInterval(autoScrollRef.current);
+        autoScrollRef.current = null;
       }
     };
   }, [isAutoScrolling]);
@@ -198,8 +219,8 @@ function Activities() {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
-          // Trigger orb animation after a short delay
-          setTimeout(() => setOrbsAnimated(true), 300);
+          // Trigger orb animation immediately
+          setOrbsAnimated(true);
         }
       });
     }, observerOptions);
@@ -425,7 +446,6 @@ function Activities() {
           <div className="absolute -top-3 -right-3 flex items-center gap-2">
             <button
               onClick={() => {
-                console.log(`Toggle auto-scroll: ${isAutoScrolling} -> ${!isAutoScrolling}`); // Debug log
                 if (autoScrollRef.current) {
                   clearInterval(autoScrollRef.current);
                   autoScrollRef.current = null;
@@ -492,7 +512,7 @@ function Activities() {
               <div
                 key={`${active}-${i}`}
                 className={`relative w-full max-w-sm mx-auto h-[420px] rounded-2xl overflow-hidden shadow-2xl group cursor-pointer transform transition-all duration-700 hover:scale-105 hover:-rotate-1 ${cardsVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-12 opacity-0 scale-95'}`}
-                style={{ transitionDelay: cardsVisible ? `${i * 200}ms` : '0ms' }}
+                style={{ transitionDelay: cardsVisible ? `${i * 50}ms` : '0ms' }}
               >
                 <img
                   src={card.img}

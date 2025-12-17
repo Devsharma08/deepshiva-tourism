@@ -1,8 +1,10 @@
 // Preload utility for route prefetching to reduce navigation delays
-// This module provides functions to preload lazy-loaded components
+// This module provides functions to preload lazy-loaded components and media
 
 // Cache to track already preloaded routes
 const preloadedRoutes = new Set();
+// Cache to track preloaded images
+const preloadedImages = new Set();
 
 // Route component mappings for preloading
 const routeComponentMap = {
@@ -85,10 +87,93 @@ export const getLinkPreloadProps = (to) => ({
     onFocus: () => preloadRoute(to),
 });
 
+// ============ IMAGE PRELOADING ============
+
+/**
+ * Preload a single image
+ * @param {string} src - The image URL to preload
+ * @returns {Promise} - Resolves when image is loaded
+ */
+export const preloadImage = (src) => {
+    if (!src || preloadedImages.has(src)) return Promise.resolve();
+
+    preloadedImages.add(src);
+
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(src);
+        img.onerror = () => {
+            preloadedImages.delete(src); // Allow retry
+            reject(new Error(`Failed to load: ${src}`));
+        };
+        img.src = src;
+    });
+};
+
+/**
+ * Preload multiple images at once
+ * @param {string[]} urls - Array of image URLs to preload
+ * @returns {Promise} - Resolves when all images are loaded
+ */
+export const preloadImages = (urls) => {
+    const uniqueUrls = [...new Set(urls.filter(Boolean))];
+    return Promise.allSettled(uniqueUrls.map(preloadImage));
+};
+
+/**
+ * Preload images in background (non-blocking)
+ * @param {string[]} urls - Array of image URLs to preload
+ */
+export const preloadImagesInBackground = (urls) => {
+    if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(() => {
+            preloadImages(urls).catch(() => { });
+        }, { timeout: 3000 });
+    } else {
+        setTimeout(() => {
+            preloadImages(urls).catch(() => { });
+        }, 100);
+    }
+};
+
+/**
+ * Preload critical images for the home page
+ */
+export const preloadCriticalImages = () => {
+    const criticalImages = [
+        // Add your critical homepage images here
+        'https://ik.imagekit.io/zd04b5mivn/Gemini_Generated_Image_oollssoollssooll.png?updatedAt=1761297541525',
+        'https://ik.imagekit.io/zd04b5mivn/Gemini_Generated_Image_hy08gqhy08gqhy08.png?updatedAt=1761297565489',
+    ];
+    preloadImagesInBackground(criticalImages);
+};
+
+// ============ VIDEO PRELOADING ============
+
+/**
+ * Preload video metadata (not full video)
+ * @param {string} src - The video URL to preload
+ */
+export const preloadVideoMetadata = (src) => {
+    if (!src) return;
+
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'video';
+    link.href = src;
+    link.type = 'video/mp4';
+    document.head.appendChild(link);
+};
+
 export default {
     preloadRoute,
     preloadRoutes,
     preloadCommonRoutes,
     handleLinkPreload,
-    getLinkPreloadProps
+    getLinkPreloadProps,
+    preloadImage,
+    preloadImages,
+    preloadImagesInBackground,
+    preloadCriticalImages,
+    preloadVideoMetadata,
 };

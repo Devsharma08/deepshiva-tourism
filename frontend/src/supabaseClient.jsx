@@ -177,7 +177,7 @@ export async function hasCompletedOnboarding(userId) {
     const result = await Promise.race([
       checkPromise,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 3000)
+        setTimeout(() => reject(new Error('timeout')), 1500)
       )
     ]);
 

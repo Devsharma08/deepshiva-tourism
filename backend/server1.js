@@ -193,11 +193,22 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 
 // --- LLM Helper Functions ---
 async function callLocalLLM(message, options = {}) {
-  const { temperature = 0.7, max_tokens = 1024 } = options;
+  // Defaults from OpenAPI spec: max_new_tokens=2048, temperature=0.8123
+  const { temperature = 0.8123, max_tokens = 2048 } = options;
 
-  const endpoints = cachedLLMEndpoint ? [cachedLLMEndpoint] : [
-    { url: `${LLM_URL}/chat`, data: { message, temperature, max_tokens } },
-    { url: `${LLM_URL}/api/chat`, data: { message, temperature, max_tokens } },
+  // Primary endpoint with exact API format: { user_message, max_new_tokens, temperature }
+  const primaryEndpoint = {
+    url: `${LLM_URL}/chat`,
+    data: {
+      user_message: message,
+      max_new_tokens: max_tokens,
+      temperature: temperature
+    }
+  };
+
+  // Fallback endpoints (if primary fails)
+  const fallbackEndpoints = [
+    { url: `${LLM_URL}/api/chat`, data: { user_message: message, max_new_tokens: max_tokens, temperature } },
     { url: `${LLM_URL}/v1/completions`, data: { prompt: message, temperature, max_tokens } },
     { url: `${LLM_URL}/generate`, data: { prompt: message, temperature, max_tokens } },
     {
@@ -208,12 +219,19 @@ async function callLocalLLM(message, options = {}) {
     }
   ];
 
+  // Use cached endpoint if available, otherwise try primary first
+  const endpoints = cachedLLMEndpoint ? [cachedLLMEndpoint] : [primaryEndpoint, ...fallbackEndpoints];
+
   for (const endpoint of endpoints) {
     try {
       console.log(`🔗 Trying LLM: ${endpoint.url}`);
       const response = await axios.post(endpoint.url, endpoint.data, {
-        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
-        timeout: 15000
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': '69420',
+          'Accept': 'application/json'
+        },
+        timeout: 60000 // 60s timeout for local model generation
       });
 
       if (!cachedLLMEndpoint) {
@@ -223,18 +241,27 @@ async function callLocalLLM(message, options = {}) {
 
       const data = response.data;
       let reply;
+
+      // Handle various response formats
       if (typeof data === 'string') reply = data;
       else if (data.response) reply = data.response;
       else if (data.message) reply = data.message;
       else if (data.text) reply = data.text;
       else if (data.generated_text) reply = data.generated_text;
+      else if (data.content) reply = data.content;
+      else if (data.output) reply = data.output;
       else if (data.choices?.[0]) reply = data.choices[0].text || data.choices[0].message?.content;
       else if (data.result) reply = data.result;
       else reply = JSON.stringify(data);
 
+      console.log(`✅ LLM response received (${reply.length} chars)`);
       return { success: true, reply, source: 'local_llm' };
     } catch (error) {
-      console.log(`❌ LLM endpoint failed: ${endpoint.url}`);
+      console.log(`❌ LLM endpoint failed: ${endpoint.url} - ${error.message}`);
+      // Clear cached endpoint if it fails
+      if (cachedLLMEndpoint?.url === endpoint.url) {
+        cachedLLMEndpoint = null;
+      }
     }
   }
   return { success: false };
@@ -365,15 +392,108 @@ function saveChatMessage(userId, role, text) {
   if (history.length > 20) history.shift();
 }
 
+// --- Response Parser & Beautifier ---
+function parseResponse(text) {
+  if (!text) return text;
+
+  let parsed = text;
+
+  // Clean up common formatting issues
+  parsed = parsed.replace(/\*\*,\*\*/g, ',');  // Fix **,** patterns
+  parsed = parsed.replace(/\*\*\s*\*\*/g, ''); // Remove empty bold
+  parsed = parsed.replace(/\n{3,}/g, '\n\n');  // Max 2 newlines
+  parsed = parsed.replace(/^\s+|\s+$/g, '');   // Trim whitespace
+
+  // Ensure proper spacing after emojis
+  parsed = parsed.replace(/([🌟💧❇️✨🌱🌺🏔️🌄🏖️🛕🕉️🇮🇳🙏])(\w)/g, '$1 $2');
+
+  // Remove trailing signature if present
+  parsed = parsed.replace(/\*\*Your ever-excited.*?🇮🇳\*\*|\[Next Stop:.*?\]/gi, '');
+
+  return parsed.trim();
+}
+
+// --- Extract Location from Message/Response ---
+function extractLocations(text) {
+  const indianPlaces = [
+    'delhi', 'mumbai', 'bangalore', 'chennai', 'kolkata', 'hyderabad',
+    'jaipur', 'udaipur', 'jodhpur', 'goa', 'kerala', 'manali', 'shimla',
+    'ladakh', 'leh', 'rishikesh', 'haridwar', 'varanasi', 'agra', 'amritsar',
+    'darjeeling', 'gangtok', 'shillong', 'guwahati', 'jaisalmer', 'pushkar',
+    'nainital', 'mussoorie', 'dehradun', 'kasol', 'spiti', 'mcleodganj',
+    'dharamsala', 'coorg', 'ooty', 'munnar', 'alleppey', 'varkala', 'kovalam',
+    'hampi', 'mysore', 'pondicherry', 'mahabalipuram', 'kochi', 'kodaikanal',
+    'andaman', 'lakshadweep', 'rajasthan', 'uttarakhand', 'himachal',
+    'joshimath', 'chopta', 'auli', 'valley of flowers', 'kedarnath', 'badrinath'
+  ];
+
+  const lowerText = text.toLowerCase();
+  return indianPlaces.filter(place => lowerText.includes(place));
+}
+
+// --- Generate Context-Aware Follow-ups ---
 async function generateFollowUps(message, response) {
-  if (!geminiModel) return ["What's the best season to visit?", "Can you suggest accommodation?", "Local customs to know?"];
-  try {
-    const prompt = `Based on this conversation, suggest 3 short follow-up questions about Indian travel:\nUser: "${message.slice(0, 100)}"\nResponse: "${response.slice(0, 200)}"\nReturn ONLY a JSON array: ["Q1?", "Q2?", "Q3?"]`;
-    const result = await rateLimitedRequest(geminiModel.generateContent.bind(geminiModel), prompt);
-    const text = (await result.response).text();
-    const match = text.match(/\[.*\]/s);
-    return match ? JSON.parse(match[0]) : null;
-  } catch (e) { return null; }
+  // Extract locations mentioned
+  const locations = extractLocations(message + ' ' + response);
+  const mainLocation = locations[0] || '';
+
+  // Generate relevant follow-ups based on context
+  const contextualFollowUps = [];
+
+  if (mainLocation) {
+    contextualFollowUps.push(
+      `Best time to visit ${mainLocation.charAt(0).toUpperCase() + mainLocation.slice(1)}?`,
+      `Where to stay in ${mainLocation.charAt(0).toUpperCase() + mainLocation.slice(1)}?`,
+      `Local food to try in ${mainLocation.charAt(0).toUpperCase() + mainLocation.slice(1)}?`
+    );
+  }
+
+  // Check for activity types and add relevant questions
+  const lowerResponse = response.toLowerCase();
+  if (lowerResponse.includes('trek') || lowerResponse.includes('hiking')) {
+    contextualFollowUps.push('What should I pack for the trek?');
+  }
+  if (lowerResponse.includes('temple') || lowerResponse.includes('spiritual')) {
+    contextualFollowUps.push('What is the dress code for temples?');
+  }
+  if (lowerResponse.includes('beach')) {
+    contextualFollowUps.push('What water sports are available?');
+  }
+  if (lowerResponse.includes('budget') || lowerResponse.includes('cost')) {
+    contextualFollowUps.push('How can I save money on this trip?');
+  }
+
+  // If we have contextual suggestions, use them
+  if (contextualFollowUps.length >= 3) {
+    return contextualFollowUps.slice(0, 3);
+  }
+
+  // Try Gemini for dynamic suggestions if available
+  if (geminiModel) {
+    try {
+      const prompt = `Based on this travel conversation, suggest exactly 3 specific follow-up questions the user might ask next.
+User asked: "${message.slice(0, 100)}"
+Response topic: "${locations.join(', ') || 'Indian travel'}"
+Return ONLY a JSON array with 3 short questions: ["Q1?", "Q2?", "Q3?"]`;
+
+      const result = await rateLimitedRequest(geminiModel.generateContent.bind(geminiModel), prompt);
+      const text = (await result.response).text();
+      const match = text.match(/\[.*\]/s);
+      if (match) {
+        const suggestions = JSON.parse(match[0]);
+        if (Array.isArray(suggestions) && suggestions.length >= 3) {
+          return suggestions.slice(0, 3);
+        }
+      }
+    } catch (e) {
+      console.log('⚠️ Gemini follow-ups failed, using contextual');
+    }
+  }
+
+  // Final fallback with generic but useful questions
+  return contextualFollowUps.length > 0
+    ? [...contextualFollowUps, ...["What's the best way to reach there?", "Any hidden gems nearby?", "What should I pack?"]].slice(0, 3)
+    : ["What's the best way to reach there?", "Where should I stay?", "What local food should I try?"];
 }
 
 // --- Footfall Calculation ---
@@ -458,40 +578,56 @@ app.get('/api/chat/history', (req, res) => {
 // --- Main Chat Endpoint (JSON) ---
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, userId = 'anonymous', temperature = 0.7, max_tokens = 1024 } = req.body;
+    const { message, userId = 'anonymous', temperature = 0.8, max_tokens = 1024 } = req.body;
     if (!message?.trim()) return res.status(400).json({ error: 'Message is required' });
 
-    console.log(`💬 [${userId}] ${message.slice(0, 50)}...`);
+    console.log(`💬 [${userId}] ${message.slice(0, 80)}...`);
     saveChatMessage(userId, 'user', message);
 
-    // Check mock responses first
-    const lowerMessage = message.toLowerCase();
-    for (const [key, response] of Object.entries(MOCK_RESPONSES)) {
-      if (lowerMessage.includes(key)) {
-        saveChatMessage(userId, 'assistant', response);
-        return res.json({ reply: response, source: 'mock', suggestions: FIXED_QUESTIONS.slice(0, 3) });
-      }
-    }
-
-    // Get context
+    // Get context (weather, similar places)
     const [weather, similarPlaces] = await Promise.all([
       getWeather(req.body.location),
       message.length > 4 ? findSimilarPlaces(message) : Promise.resolve('')
     ]);
 
-    let enhancedMessage = message;
+    let enhancedMessage = `${SYSTEM_PROMPT}\n\nUser: ${message}`;
     if (weather) enhancedMessage += `\n[Context: Weather is ${weather}]`;
     if (similarPlaces) enhancedMessage += `\n[Related places:\n${similarPlaces}]`;
 
-    // Try LLM -> Gemini -> Fallback
+    // ALWAYS try Local LLM FIRST
+    console.log(`🔄 Calling local LLM...`);
     let result = await callLocalLLM(enhancedMessage, { temperature, max_tokens });
-    if (!result.success) result = await callGemini(enhancedMessage, { temperature, max_tokens });
-    if (!result.success) result = { success: true, reply: "I'm your travel assistant! Ask about India. 🇮🇳", source: 'fallback' };
 
-    saveChatMessage(userId, 'assistant', result.reply);
-    const followUps = await generateFollowUps(message, result.reply);
+    // If LLM fails, try Gemini
+    if (!result.success) {
+      console.log(`⚠️ Local LLM failed, trying Gemini...`);
+      result = await callGemini(message, { temperature, max_tokens });
+    }
 
-    res.json({ reply: result.reply, source: result.source, suggestions: followUps || FIXED_QUESTIONS.slice(0, 3) });
+    // If both fail, use intelligent fallback based on message
+    if (!result.success) {
+      console.log(`⚠️ All LLMs failed, using fallback...`);
+      const lowerMessage = message.toLowerCase();
+      let fallbackReply = "I'm having trouble connecting right now. Please try again! 🔄";
+
+      // Use mock responses only as last resort
+      for (const [key, response] of Object.entries(MOCK_RESPONSES)) {
+        if (lowerMessage.includes(key)) {
+          fallbackReply = response;
+          break;
+        }
+      }
+      result = { success: true, reply: fallbackReply, source: 'fallback' };
+    }
+
+    // Parse and beautify the response
+    const beautifiedReply = parseResponse(result.reply);
+
+    saveChatMessage(userId, 'assistant', beautifiedReply);
+    const followUps = await generateFollowUps(message, beautifiedReply);
+
+    console.log(`✅ Response sent (source: ${result.source})`);
+    res.json({ reply: beautifiedReply, source: result.source, suggestions: followUps || FIXED_QUESTIONS.slice(0, 3) });
   } catch (error) {
     console.error('❌ Chat error:', error);
     res.status(500).json({ error: 'Internal server error', reply: "Please try again! 🔄" });
@@ -501,10 +637,10 @@ app.post('/api/chat', async (req, res) => {
 // --- Streaming Chat (SSE) ---
 app.post('/chat-stream', async (req, res) => {
   try {
-    const { message, userId = 'anonymous', temperature = 0.7, max_tokens = 1024 } = req.body;
+    const { message, userId = 'anonymous', temperature = 0.8123, max_tokens = 2048 } = req.body;
     if (!message?.trim()) return res.status(400).json({ error: 'Message is required' });
 
-    console.log(`📨 [Stream] ${message.slice(0, 50)}...`);
+    console.log(`📨 [Stream] ${message.slice(0, 80)}...`);
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -516,42 +652,55 @@ app.post('/chat-stream', async (req, res) => {
     saveChatMessage(userId, 'user', message);
     let fullResponse = '';
 
-    // Check mock responses
-    const lowerMessage = message.toLowerCase();
-    let mockResponse = null;
-    for (const [key, response] of Object.entries(MOCK_RESPONSES)) {
-      if (lowerMessage.includes(key)) { mockResponse = response; break; }
-    }
+    // Build enhanced message with system prompt
+    const enhancedMessage = `${SYSTEM_PROMPT}\n\nUser: ${message}`;
 
-    if (mockResponse) {
-      fullResponse = mockResponse;
+    // ALWAYS try Local LLM FIRST
+    console.log(`🔄 [Stream] Calling local LLM...`);
+    const llmResult = await callLocalLLM(enhancedMessage, { temperature, max_tokens });
+
+    if (llmResult.success) {
+      console.log(`✅ [Stream] LLM response received (${llmResult.reply.length} chars)`);
+      fullResponse = llmResult.reply;
+      // Stream character by character for typing effect
       for (const char of fullResponse) {
         res.write(`data: ${JSON.stringify({ text: char })}\n\n`);
-        await new Promise(r => setTimeout(r, 10));
+        await new Promise(r => setTimeout(r, 5));
       }
     } else {
-      const llmResult = await callLocalLLM(message, { temperature, max_tokens });
-      if (llmResult.success) {
-        fullResponse = llmResult.reply;
+      // Try Gemini streaming fallback
+      console.log(`⚠️ [Stream] LLM failed, trying Gemini...`);
+      const streamResult = await streamGemini(message, res, { temperature, max_tokens });
+      if (streamResult.success) {
+        fullResponse = streamResult.fullResponse;
+      } else {
+        // Last resort: use mock response or error message
+        console.log(`⚠️ [Stream] All LLMs failed, using fallback...`);
+        const lowerMessage = message.toLowerCase();
+        let fallbackText = "I'm having trouble connecting right now. Please try again! 🔄";
+
+        for (const [key, response] of Object.entries(MOCK_RESPONSES)) {
+          if (lowerMessage.includes(key)) {
+            fallbackText = response;
+            break;
+          }
+        }
+
+        fullResponse = fallbackText;
         for (const char of fullResponse) {
           res.write(`data: ${JSON.stringify({ text: char })}\n\n`);
-          await new Promise(r => setTimeout(r, 5));
-        }
-      } else {
-        const streamResult = await streamGemini(message, res, { temperature, max_tokens });
-        if (streamResult.success) fullResponse = streamResult.fullResponse;
-        else {
-          const errorText = "I'm experiencing high demand. Please try again! ⏳";
-          for (const char of errorText) res.write(`data: ${JSON.stringify({ text: char })}\n\n`);
-          fullResponse = errorText;
+          await new Promise(r => setTimeout(r, 10));
         }
       }
     }
 
-    saveChatMessage(userId, 'assistant', fullResponse);
-    const followUps = await generateFollowUps(message, fullResponse) || FIXED_QUESTIONS.slice(0, 3);
+    // Beautify the response before saving
+    const beautifiedResponse = parseResponse(fullResponse);
+    saveChatMessage(userId, 'assistant', beautifiedResponse);
+    const followUps = await generateFollowUps(message, beautifiedResponse) || FIXED_QUESTIONS.slice(0, 3);
     res.write(`data: ${JSON.stringify({ followUps })}\n\n`);
     res.write('data: [END_OF_STREAM]\n\n');
+    console.log(`✅ [Stream] Response complete (source: ${llmResult.success ? 'local_llm' : 'fallback'})`);
     res.end();
   } catch (error) {
     console.error('❌ Stream error:', error);
@@ -641,6 +790,198 @@ app.get('/api/airports', async (req, res) => {
     res.json({ airports: matched });
   } catch (e) {
     res.json({ airports: [] });
+  }
+});
+
+// --- Popular Indian Destinations Database ---
+const INDIAN_DESTINATIONS = [
+  // Northern India
+  { id: 'jaipur', name: 'Jaipur', state: 'Rajasthan', category: 'city', coordinates: { lat: 26.9124, lng: 75.7873 }, famous: 'Pink City, Amber Fort', thumbnail: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400' },
+  { id: 'udaipur', name: 'Udaipur', state: 'Rajasthan', category: 'city', coordinates: { lat: 24.5854, lng: 73.7125 }, famous: 'Lake City, City Palace', thumbnail: 'https://images.unsplash.com/photo-1568495248636-6432b97bd949?w=400' },
+  { id: 'jodhpur', name: 'Jodhpur', state: 'Rajasthan', category: 'city', coordinates: { lat: 26.2389, lng: 73.0243 }, famous: 'Blue City, Mehrangarh Fort', thumbnail: 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=400' },
+  { id: 'jaisalmer', name: 'Jaisalmer', state: 'Rajasthan', category: 'city', coordinates: { lat: 26.9157, lng: 70.9083 }, famous: 'Golden City, Desert Safari', thumbnail: 'https://images.unsplash.com/photo-1599661046289-e31897846e41?w=400' },
+  { id: 'agra', name: 'Agra', state: 'Uttar Pradesh', category: 'city', coordinates: { lat: 27.1767, lng: 78.0081 }, famous: 'Taj Mahal, Agra Fort', thumbnail: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?w=400' },
+  { id: 'varanasi', name: 'Varanasi', state: 'Uttar Pradesh', category: 'spiritual', coordinates: { lat: 25.3176, lng: 82.9739 }, famous: 'Ganges Ghats, Kashi Vishwanath', thumbnail: 'https://images.unsplash.com/photo-1561361513-2d000a50f0dc?w=400' },
+  { id: 'delhi', name: 'Delhi', state: 'Delhi NCR', category: 'city', coordinates: { lat: 28.6139, lng: 77.2090 }, famous: 'Red Fort, India Gate', thumbnail: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=400' },
+  { id: 'amritsar', name: 'Amritsar', state: 'Punjab', category: 'spiritual', coordinates: { lat: 31.6340, lng: 74.8723 }, famous: 'Golden Temple, Wagah Border', thumbnail: 'https://images.unsplash.com/photo-1623492229905-ebc1ecb6b2e3?w=400' },
+
+  // Hill Stations
+  { id: 'shimla', name: 'Shimla', state: 'Himachal Pradesh', category: 'hill_station', coordinates: { lat: 31.1048, lng: 77.1734 }, famous: 'Mall Road, Ridge', thumbnail: 'https://images.unsplash.com/photo-1597074866923-dc0589150358?w=400' },
+  { id: 'manali', name: 'Manali', state: 'Himachal Pradesh', category: 'hill_station', coordinates: { lat: 32.2432, lng: 77.1892 }, famous: 'Solang Valley, Rohtang Pass', thumbnail: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=400' },
+  { id: 'dharamsala', name: 'Dharamsala', state: 'Himachal Pradesh', category: 'hill_station', coordinates: { lat: 32.2190, lng: 76.3234 }, famous: 'Dalai Lama Temple, McLeodganj', thumbnail: 'https://images.unsplash.com/photo-1573492048923-45bad3c48f1c?w=400' },
+  { id: 'nainital', name: 'Nainital', state: 'Uttarakhand', category: 'hill_station', coordinates: { lat: 29.3803, lng: 79.4636 }, famous: 'Naini Lake, Mall Road', thumbnail: 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?w=400' },
+  { id: 'mussoorie', name: 'Mussoorie', state: 'Uttarakhand', category: 'hill_station', coordinates: { lat: 30.4598, lng: 78.0644 }, famous: 'Kempty Falls, Gun Hill', thumbnail: 'https://images.unsplash.com/photo-1582292025529-4daefd88707e?w=400' },
+  { id: 'darjeeling', name: 'Darjeeling', state: 'West Bengal', category: 'hill_station', coordinates: { lat: 27.0410, lng: 88.2663 }, famous: 'Tea Gardens, Tiger Hill', thumbnail: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=400' },
+  { id: 'ooty', name: 'Ooty', state: 'Tamil Nadu', category: 'hill_station', coordinates: { lat: 11.4102, lng: 76.6950 }, famous: 'Toy Train, Botanical Garden', thumbnail: 'https://images.unsplash.com/photo-1610714250055-c0f8d0ad2cff?w=400' },
+  { id: 'munnar', name: 'Munnar', state: 'Kerala', category: 'hill_station', coordinates: { lat: 10.0889, lng: 77.0595 }, famous: 'Tea Plantations, Eravikulam', thumbnail: 'https://images.unsplash.com/photo-1593693411515-c20261bcad6e?w=400' },
+
+  // Beaches
+  { id: 'goa', name: 'Goa', state: 'Goa', category: 'beach', coordinates: { lat: 15.2993, lng: 74.1240 }, famous: 'Beaches, Nightlife, Churches', thumbnail: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=400' },
+  { id: 'kovalam', name: 'Kovalam', state: 'Kerala', category: 'beach', coordinates: { lat: 8.3988, lng: 76.9781 }, famous: 'Lighthouse Beach, Ayurveda', thumbnail: 'https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c7f?w=400' },
+  { id: 'alleppey', name: 'Alleppey', state: 'Kerala', category: 'beach', coordinates: { lat: 9.4981, lng: 76.3388 }, famous: 'Backwaters, Houseboats', thumbnail: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=400' },
+  { id: 'pondicherry', name: 'Pondicherry', state: 'Puducherry', category: 'beach', coordinates: { lat: 11.9416, lng: 79.8083 }, famous: 'French Quarter, Auroville', thumbnail: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=400' },
+  { id: 'andaman', name: 'Andaman Islands', state: 'Andaman & Nicobar', category: 'beach', coordinates: { lat: 11.7401, lng: 92.6586 }, famous: 'Beaches, Scuba Diving', thumbnail: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400' },
+
+  // Adventure
+  { id: 'rishikesh', name: 'Rishikesh', state: 'Uttarakhand', category: 'adventure', coordinates: { lat: 30.0869, lng: 78.2676 }, famous: 'Rafting, Yoga Capital', thumbnail: 'https://images.unsplash.com/photo-1592385054617-9e75bbaaa10c?w=400' },
+  { id: 'ladakh', name: 'Leh-Ladakh', state: 'Ladakh', category: 'adventure', coordinates: { lat: 34.1526, lng: 77.5771 }, famous: 'Pangong Lake, Khardung La', thumbnail: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=400' },
+  { id: 'spiti', name: 'Spiti Valley', state: 'Himachal Pradesh', category: 'adventure', coordinates: { lat: 32.2465, lng: 78.0348 }, famous: 'Key Monastery, Chandratal', thumbnail: 'https://images.unsplash.com/photo-1626972854512-dbcf04e2bb74?w=400' },
+  { id: 'joshimath', name: 'Joshimath', state: 'Uttarakhand', category: 'adventure', coordinates: { lat: 30.5500, lng: 79.5667 }, famous: 'Auli Skiing, Badrinath Gateway', thumbnail: 'https://images.unsplash.com/photo-1605649487212-47bdab064df7?w=400' },
+  { id: 'chopta', name: 'Chopta', state: 'Uttarakhand', category: 'adventure', coordinates: { lat: 30.2833, lng: 79.2167 }, famous: 'Tungnath Trek, Mini Switzerland', thumbnail: 'https://images.unsplash.com/photo-1544735716-d1bdbd3af893?w=400' },
+
+  // South India
+  { id: 'mysore', name: 'Mysore', state: 'Karnataka', category: 'city', coordinates: { lat: 12.2958, lng: 76.6394 }, famous: 'Mysore Palace, Chamundi Hills', thumbnail: 'https://images.unsplash.com/photo-1600011689032-8b628b8a8747?w=400' },
+  { id: 'hampi', name: 'Hampi', state: 'Karnataka', category: 'heritage', coordinates: { lat: 15.3350, lng: 76.4600 }, famous: 'Virupaksha Temple, Ruins', thumbnail: 'https://images.unsplash.com/photo-1600011689032-8b628b8a8747?w=400' },
+  { id: 'coorg', name: 'Coorg', state: 'Karnataka', category: 'hill_station', coordinates: { lat: 12.3375, lng: 75.8069 }, famous: 'Coffee Plantations, Abbey Falls', thumbnail: 'https://images.unsplash.com/photo-1506038634487-60a69ae4b7b1?w=400' },
+  { id: 'kochi', name: 'Kochi', state: 'Kerala', category: 'city', coordinates: { lat: 9.9312, lng: 76.2673 }, famous: 'Fort Kochi, Chinese Nets', thumbnail: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=400' },
+  { id: 'madurai', name: 'Madurai', state: 'Tamil Nadu', category: 'spiritual', coordinates: { lat: 9.9252, lng: 78.1198 }, famous: 'Meenakshi Temple', thumbnail: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=400' },
+
+  // West India
+  { id: 'mumbai', name: 'Mumbai', state: 'Maharashtra', category: 'city', coordinates: { lat: 19.0760, lng: 72.8777 }, famous: 'Gateway of India, Bollywood', thumbnail: 'https://images.unsplash.com/photo-1595658658481-d53d3f999875?w=400' },
+  { id: 'pune', name: 'Pune', state: 'Maharashtra', category: 'city', coordinates: { lat: 18.5204, lng: 73.8567 }, famous: 'Aga Khan Palace, Shaniwar Wada', thumbnail: 'https://images.unsplash.com/photo-1600011689032-8b628b8a8747?w=400' },
+  { id: 'ajanta_ellora', name: 'Ajanta-Ellora', state: 'Maharashtra', category: 'heritage', coordinates: { lat: 20.5519, lng: 75.7033 }, famous: 'Cave Temples, UNESCO Site', thumbnail: 'https://images.unsplash.com/photo-1590123550581-1c4e9d2a7d8d?w=400' },
+  { id: 'ahmedabad', name: 'Ahmedabad', state: 'Gujarat', category: 'city', coordinates: { lat: 23.0225, lng: 72.5714 }, famous: 'Sabarmati Ashram, Heritage City', thumbnail: 'https://images.unsplash.com/photo-1600011689032-8b628b8a8747?w=400' },
+  { id: 'rann_of_kutch', name: 'Rann of Kutch', state: 'Gujarat', category: 'nature', coordinates: { lat: 23.7337, lng: 69.8597 }, famous: 'White Desert, Rann Utsav', thumbnail: 'https://images.unsplash.com/photo-1597040663342-45b6af3d91a5?w=400' },
+
+  // East & Northeast
+  { id: 'kolkata', name: 'Kolkata', state: 'West Bengal', category: 'city', coordinates: { lat: 22.5726, lng: 88.3639 }, famous: 'Victoria Memorial, Howrah Bridge', thumbnail: 'https://images.unsplash.com/photo-1558431382-27e303142255?w=400' },
+  { id: 'gangtok', name: 'Gangtok', state: 'Sikkim', category: 'hill_station', coordinates: { lat: 27.3389, lng: 88.6065 }, famous: 'Nathula Pass, Monasteries', thumbnail: 'https://images.unsplash.com/photo-1626972854519-e1e5e4c38c6b?w=400' },
+  { id: 'shillong', name: 'Shillong', state: 'Meghalaya', category: 'hill_station', coordinates: { lat: 25.5788, lng: 91.8933 }, famous: 'Living Root Bridges, Waterfalls', thumbnail: 'https://images.unsplash.com/photo-1600011689032-8b628b8a8747?w=400' },
+  { id: 'kaziranga', name: 'Kaziranga', state: 'Assam', category: 'wildlife', coordinates: { lat: 26.5775, lng: 93.1711 }, famous: 'One-Horned Rhino, Safari', thumbnail: 'https://images.unsplash.com/photo-1600011689032-8b628b8a8747?w=400' }
+];
+
+// --- Destination Search API (Dynamic with Photon/Nominatim) ---
+app.get('/api/destinations/search', async (req, res) => {
+  try {
+    const { query, category, limit = 10 } = req.query;
+
+    // If no query, return popular destinations from static database
+    if (!query || query.length < 2) {
+      let popular = INDIAN_DESTINATIONS;
+      if (category) {
+        popular = popular.filter(dest => dest.category === category);
+      }
+      return res.json({
+        destinations: popular.slice(0, parseInt(limit)),
+        source: 'popular'
+      });
+    }
+
+    console.log(`🔍 Searching destinations: "${query}" category: ${category || 'all'}`);
+
+    // Try Photon API for real-time search (OpenStreetMap based, free)
+    try {
+      const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query + ' India')}&limit=${parseInt(limit) + 5}&lang=en`;
+
+      const response = await axios.get(photonUrl, {
+        headers: { 'User-Agent': 'DeepShivaTravelApp/1.0' },
+        timeout: 5000
+      });
+
+      if (response.data?.features?.length > 0) {
+        // Map OSM types to our categories
+        const osmToCategory = {
+          'city': 'city',
+          'town': 'city',
+          'village': 'city',
+          'locality': 'city',
+          'state': 'city',
+          'county': 'city',
+          'tourism': 'landmark',
+          'attraction': 'landmark',
+          'museum': 'museum',
+          'park': 'park',
+          'garden': 'park',
+          'nature_reserve': 'nature',
+          'national_park': 'wildlife',
+          'hotel': 'hotel',
+          'guest_house': 'hotel',
+          'restaurant': 'restaurant',
+          'cafe': 'restaurant',
+          'place_of_worship': 'spiritual',
+          'temple': 'spiritual',
+          'mosque': 'spiritual',
+          'church': 'spiritual',
+          'beach': 'beach',
+          'peak': 'hill_station',
+          'mountain': 'hill_station',
+          'viewpoint': 'hill_station',
+          'historic': 'heritage',
+          'monument': 'heritage',
+          'archaeological_site': 'heritage',
+          'fort': 'heritage',
+          'castle': 'heritage'
+        };
+
+        let results = response.data.features
+          .filter(f => f.properties?.country === 'India' || f.properties?.countrycode === 'IN')
+          .map(feature => {
+            const props = feature.properties;
+            const coords = feature.geometry?.coordinates;
+
+            // Determine category from OSM data
+            let detectedCategory = 'city';
+            const osmType = props.osm_value || props.type || '';
+            const osmKey = props.osm_key || '';
+
+            if (osmToCategory[osmType]) {
+              detectedCategory = osmToCategory[osmType];
+            } else if (osmToCategory[osmKey]) {
+              detectedCategory = osmToCategory[osmKey];
+            } else if (props.type === 'city' || props.type === 'town') {
+              detectedCategory = 'city';
+            }
+
+            return {
+              id: `osm_${props.osm_id || Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+              name: props.name,
+              state: props.state || props.county || 'India',
+              category: detectedCategory,
+              coordinates: coords ? { lat: coords[1], lng: coords[0] } : null,
+              famous: props.street ? `Near ${props.street}` : (props.city || props.state || ''),
+              thumbnail: `https://source.unsplash.com/400x300/?${encodeURIComponent(props.name + ' india tourism')}`,
+              source: 'photon'
+            };
+          });
+
+        // Filter by category if specified
+        if (category && category !== 'all') {
+          results = results.filter(dest => dest.category === category);
+        }
+
+        // Limit results
+        results = results.slice(0, parseInt(limit));
+
+        if (results.length > 0) {
+          console.log(`✅ Found ${results.length} real destinations from Photon API`);
+          return res.json({ destinations: results, source: 'photon' });
+        }
+      }
+    } catch (apiError) {
+      console.log(`⚠️ Photon API failed: ${apiError.message}, falling back to database`);
+    }
+
+    // Fallback to static database
+    const searchTerm = query.toLowerCase();
+    let results = INDIAN_DESTINATIONS.filter(dest =>
+      dest.name.toLowerCase().includes(searchTerm) ||
+      dest.state.toLowerCase().includes(searchTerm) ||
+      dest.famous.toLowerCase().includes(searchTerm) ||
+      dest.category.toLowerCase().includes(searchTerm)
+    );
+
+    // Filter by category if provided
+    if (category && category !== 'all') {
+      results = results.filter(dest => dest.category === category);
+    }
+
+    results = results.slice(0, parseInt(limit));
+    console.log(`📍 Found ${results.length} destinations from database for "${query}"`);
+    res.json({ destinations: results, source: 'database' });
+
+  } catch (error) {
+    console.error('❌ Destination search error:', error);
+    res.json({ destinations: [], error: error.message });
   }
 });
 

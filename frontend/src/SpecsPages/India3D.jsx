@@ -34,8 +34,8 @@ const REGIONS_DATA = {
     color: "#3B82F6",
     bgGradient: "from-blue-50 via-sky-50 to-cyan-50",
     borderColor: "border-blue-300",
-    mapCenter: [77, 28],
-    mapScale: 1800,
+    mapCenter: [78, 30],
+    mapScale: 1400,
     states: ["J & K", "Ladakh", "Himachal Pradesh", "Punjab", "Haryana", "Delhi", "Chandigarh", "Uttarakhand", "Rajasthan", "Uttar Pradesh"],
     description: "North India stands as the cradle of Indian civilization, where snow-capped Himalayan peaks meet ancient temple spires. This is the land of the Taj Mahal, the spiritual Ganges, and magnificent Rajput forts that tell tales of valor and romance.",
     highlights: ["Taj Mahal - Agra", "Golden Temple - Amritsar", "Varanasi Ghats", "Jaipur Pink City", "Rishikesh Yoga Capital"],
@@ -127,10 +127,22 @@ const REGIONS_DATA = {
 
 // Region Map Component - Shows ONLY that region
 const RegionOnlyMap = ({ geoData, regionStates, regionColor, mapCenter, mapScale, onStateClick }) => {
-  if (!geoData) return <div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />;
+  // Function to darken a hex color
+  const darkenColor = (hex, percent) => {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.max((num >> 16) - amt, 0);
+    const G = Math.max((num >> 8 & 0x00FF) - amt, 0);
+    const B = Math.max((num & 0x0000FF) - amt, 0);
+    return `#${(1 << 24 | R << 16 | G << 8 | B).toString(16).slice(1)}`;
+  };
+
+  const hoverColor = darkenColor(regionColor, 25);
+
+  if (!geoData) return <div className="h-72 bg-gray-100 rounded-2xl animate-pulse" />;
 
   return (
-    <div className="h-64 bg-gradient-to-br from-white to-gray-50 rounded-2xl overflow-hidden border-2 border-gray-100 shadow-inner">
+    <div className="h-72 bg-gradient-to-br from-gray-50 to-white rounded-2xl overflow-hidden shadow-sm">
       <ComposableMap
         projection="geoMercator"
         projectionConfig={{ scale: mapScale, center: mapCenter }}
@@ -154,12 +166,22 @@ const RegionOnlyMap = ({ geoData, regionStates, regionColor, mapCenter, mapScale
                   fill={regionColor}
                   stroke="#FFF"
                   strokeWidth={1}
-                  className="region-state"
+                  className="region-state-mini"
                   data-tooltip-id="map-tooltip"
                   data-tooltip-content={`Explore ${stateName}`}
                   style={{
-                    default: { outline: "none" },
-                    hover: { outline: "none", fill: "#FFF", cursor: "pointer" }
+                    default: {
+                      outline: "none",
+                      cursor: "pointer",
+                      transition: "all 0.4s ease"
+                    },
+                    hover: {
+                      outline: "none",
+                      fill: hoverColor,
+                      cursor: "pointer",
+                      filter: `drop-shadow(0 4px 8px ${regionColor}50)`
+                    },
+                    pressed: { outline: "none" }
                   }}
                 />
               );
@@ -177,26 +199,49 @@ const RegionSection = ({ region, geoData, onStateClick, isMapOnLeft }) => {
   const Icon = region.icon;
 
   const textContent = (
-    <div className="flex-1 space-y-4">
+    <div className="flex-1 space-y-5">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-3 rounded-xl shadow-md" style={{ backgroundColor: `${region.color}15`, border: `2px solid ${region.color}30` }}>
-            <Icon className="w-7 h-7" style={{ color: region.color }} />
+        <div className="flex items-center gap-4 mb-3">
+          <div
+            className="p-4 rounded-2xl shadow-lg relative overflow-hidden group"
+            style={{
+              background: `linear-gradient(135deg, ${region.color}20, ${region.color}40)`,
+              border: `2px solid ${region.color}50`
+            }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent" />
+            <Icon className="w-8 h-8 relative z-10" style={{ color: region.color }} />
           </div>
           <div>
-            <h3 className="text-2xl md:text-3xl font-bold text-gray-900">{region.name}</h3>
-            <p className="text-sm font-medium" style={{ color: region.color }}>{region.tagline}</p>
+            <h3
+              className="text-3xl md:text-4xl font-black tracking-tight"
+              style={{
+                background: `linear-gradient(135deg, ${region.color}, ${region.color}CC)`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                textShadow: `0 2px 20px ${region.color}30`
+              }}
+            >
+              {region.name}
+            </h3>
+            <p
+              className="text-base font-semibold tracking-wide flex items-center gap-2"
+              style={{ color: `${region.color}CC` }}
+            >
+              <Sparkles className="w-4 h-4" />
+              {region.tagline}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Description */}
-      <p className="text-gray-600 leading-relaxed text-base">
+      <p className="text-gray-600 leading-relaxed text-base border-l-4 pl-4" style={{ borderColor: `${region.color}40` }}>
         {isExpanded ? region.description : region.description.slice(0, 180) + "..."}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="ml-2 font-semibold inline-flex items-center gap-1 hover:underline"
+          className="ml-2 font-bold inline-flex items-center gap-1 hover:underline transition-all"
           style={{ color: region.color }}
         >
           {isExpanded ? <>Less <ChevronUp className="w-4 h-4" /></> : <>Read More <ChevronDown className="w-4 h-4" /></>}
@@ -205,51 +250,52 @@ const RegionSection = ({ region, geoData, onStateClick, isMapOnLeft }) => {
 
       {/* States */}
       <div>
-        <div className="flex items-center gap-2 mb-2">
-          <MapPin className="w-4 h-4 text-gray-500" />
-          <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">States & Territories</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Explore</p>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
           {region.states.map((state, i) => (
             <button
               key={i}
               onClick={() => onStateClick(state)}
-              className="text-sm bg-white hover:bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-400 transition-all shadow-sm hover:shadow flex items-center gap-1"
+              className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors duration-200 flex items-center gap-1.5 group"
             >
-              {state} <ArrowRight className="w-3 h-3 opacity-50" />
+              <span
+                className="w-1.5 h-1.5 rounded-full transition-transform duration-200 group-hover:scale-125"
+                style={{ backgroundColor: region.color }}
+              />
+              {state}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Info Grid */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
-          <div className="flex items-center gap-2 text-gray-500 text-xs font-medium mb-1">
-            <Calendar className="w-3 h-3" /> BEST TIME
-          </div>
-          <p className="text-gray-800 font-semibold text-sm">{region.bestTime}</p>
+      {/* Info Row - Elegant inline display */}
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 py-4 border-t border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-gray-400" />
+          <span className="text-xs uppercase tracking-wider text-gray-400 font-medium">Best Time</span>
+          <span className="text-sm font-semibold text-gray-800">{region.bestTime}</span>
         </div>
-        <div className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
-          <div className="flex items-center gap-2 text-gray-500 text-xs font-medium mb-1">
-            <Cloud className="w-3 h-3" /> CLIMATE
-          </div>
-          <p className="text-gray-800 font-semibold text-sm">{region.climate}</p>
+        <div className="flex items-center gap-2">
+          <Cloud className="w-4 h-4 text-gray-400" />
+          <span className="text-xs uppercase tracking-wider text-gray-400 font-medium">Climate</span>
+          <span className="text-sm font-semibold text-gray-800">{region.climate}</span>
         </div>
-        <div className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
-          <div className="flex items-center gap-2 text-gray-500 text-xs font-medium mb-1">
-            <Star className="w-3 h-3" /> FAMOUS FOR
-          </div>
-          <p className="text-gray-800 font-semibold text-sm truncate">{region.famousFor}</p>
+        <div className="flex items-center gap-2">
+          <Star className="w-4 h-4 text-gray-400" />
+          <span className="text-xs uppercase tracking-wider text-gray-400 font-medium">Known For</span>
+          <span className="text-sm font-semibold text-gray-800">{region.famousFor}</span>
         </div>
       </div>
 
-      {/* Highlights */}
+      {/* Highlights - Minimal tags */}
       <div>
-        <div className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2">Top Highlights</div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Highlights</p>
         <div className="flex flex-wrap gap-2">
           {region.highlights.map((h, i) => (
-            <span key={i} className="text-xs px-3 py-1.5 rounded-full font-medium" style={{ backgroundColor: `${region.color}15`, color: region.color }}>
+            <span
+              key={i}
+              className="text-xs px-3 py-1.5 rounded-full font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors cursor-default"
+            >
               {h}
             </span>
           ))}
@@ -259,7 +305,7 @@ const RegionSection = ({ region, geoData, onStateClick, isMapOnLeft }) => {
   );
 
   const mapContent = (
-    <div className="w-full md:w-80 flex-shrink-0">
+    <div className="w-full md:w-96 flex-shrink-0">
       <RegionOnlyMap
         geoData={geoData}
         regionStates={region.states}
@@ -272,8 +318,20 @@ const RegionSection = ({ region, geoData, onStateClick, isMapOnLeft }) => {
   );
 
   return (
-    <div className={`bg-gradient-to-br ${region.bgGradient} rounded-3xl p-6 md:p-8 ${region.borderColor} border-2 shadow-xl`}>
-      <div className={`flex flex-col md:flex-row gap-6 md:gap-8 items-center ${isMapOnLeft ? '' : 'md:flex-row-reverse'}`}>
+    <div
+      className="rounded-3xl p-8 md:p-10 shadow-lg relative overflow-hidden group bg-white/80 backdrop-blur-sm"
+    >
+      {/* Decorative gradient orb */}
+      <div
+        className="absolute -top-20 -right-20 w-60 h-60 rounded-full blur-3xl opacity-20 group-hover:opacity-30 transition-opacity duration-700"
+        style={{ backgroundColor: region.color }}
+      />
+      <div
+        className="absolute -bottom-20 -left-20 w-40 h-40 rounded-full blur-3xl opacity-10"
+        style={{ backgroundColor: region.color }}
+      />
+
+      <div className={`relative z-10 flex flex-col md:flex-row gap-8 md:gap-10 items-center ${isMapOnLeft ? '' : 'md:flex-row-reverse'}`}>
         {mapContent}
         {textContent}
       </div>
@@ -380,8 +438,8 @@ const India3D = () => {
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-white">
 
       {/* Hero Section */}
-      <section className="py-8 px-4 md:px-6">
-        <div className="max-w-7xl mx-auto">
+      <section className="py-8 px-2 md:px-4">
+        <div className="max-w-[1600px] mx-auto">
 
           {/* Header */}
           <div className="text-center mb-6">
@@ -395,10 +453,10 @@ const India3D = () => {
           </div>
 
           {/* Map + Filters in flex-row */}
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+          <div className="flex flex-col lg:flex-row gap-3 items-stretch">
 
             {/* Filters Panel - Left */}
-            <div className="lg:w-64 flex-shrink-0 space-y-3">
+            <div className="lg:w-80 flex-shrink-0 space-y-3">
               {/* Map Filters */}
               <div className="bg-white rounded-xl p-4 shadow-lg border border-amber-100">
                 <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
@@ -452,11 +510,11 @@ const India3D = () => {
             </div>
 
             {/* Map - Right */}
-            <div className="flex-1">
-              <div className="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden h-[450px]">
+            <div className="flex-1 min-w-0">
+              <div className="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden h-[650px]">
                 <ComposableMap
                   projection="geoMercator"
-                  projectionConfig={{ scale: 1000 * zoom, center: [82, 22] }}
+                  projectionConfig={{ scale: 950 * zoom, center: [82, 24] }}
                   style={{ width: "100%", height: "100%" }}
                 >
                   <Geographies geography={geoData}>
@@ -472,12 +530,23 @@ const India3D = () => {
                             onClick={() => handleStateClick(stateName)}
                             onMouseEnter={() => setHoveredRegion(geo.rsmKey)}
                             onMouseLeave={() => setHoveredRegion(null)}
-                            fill={isHovered ? "#FFF" : getRegionStyle(stateName)}
-                            stroke="#FFF"
-                            strokeWidth={0.5}
+                            fill={isHovered ? "#D97706" : getRegionStyle(stateName)}
+                            stroke={isHovered ? "#92400E" : "#FFF"}
+                            strokeWidth={isHovered ? 2.5 : 0.5}
                             className="state-shape"
                             data-tooltip-id="map-tooltip"
                             data-tooltip-content={`Explore ${stateName}`}
+                            style={{
+                              default: {
+                                outline: "none",
+                                cursor: "pointer"
+                              },
+                              hover: {
+                                outline: "none",
+                                cursor: "pointer"
+                              },
+                              pressed: { outline: "none" }
+                            }}
                           />
                         );
                       })
@@ -505,14 +574,45 @@ const India3D = () => {
       </section>
 
       {/* Regions Section */}
-      <section ref={regionsRef} className="py-12 px-4 md:px-6 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">Discover India's <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">Regions</span></h2>
-            <p className="text-gray-600">Six unique zones, endless stories to explore</p>
+      <section ref={regionsRef} className="py-16 px-4 md:px-6 bg-gradient-to-b from-white via-amber-50/30 to-white relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-200/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-orange-200/20 rounded-full blur-3xl" />
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          {/* Section Header */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 px-5 py-2.5 rounded-full text-sm font-bold mb-4 shadow-sm">
+              <Globe className="w-4 h-4" />
+              <span>Six Unique Zones</span>
+            </div>
+            <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-4 tracking-tight">
+              Discover India's{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 animate-gradient">
+                Regions
+              </span>
+            </h2>
+            <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto font-medium">
+              From the snow-capped Himalayas to tropical coastlines —
+              <span className="text-amber-600 font-semibold"> endless stories await</span>
+            </p>
+            <div className="flex justify-center gap-8 mt-6">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="w-2 h-2 rounded-full bg-amber-400" />
+                28 States
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="w-2 h-2 rounded-full bg-orange-400" />
+                8 Union Territories
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="w-2 h-2 rounded-full bg-red-400" />
+                ∞ Adventures
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-10">
             {Object.entries(REGIONS_DATA).map(([key, region], index) => (
               <RegionSection
                 key={key}
@@ -527,8 +627,22 @@ const India3D = () => {
       </section>
 
       <style>{`
-        .state-shape { transition: all 0.3s ease; cursor: pointer; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.1)); }
-        .state-shape:hover { transform: translateY(-5px) scale(1.02); filter: drop-shadow(0 10px 15px rgba(245,158,11,0.3)); }
+        .state-shape { 
+          transition: fill 0.5s ease, stroke 0.5s ease, stroke-width 0.3s ease, filter 0.5s ease; 
+          cursor: pointer; 
+          filter: drop-shadow(0 2px 3px rgba(0,0,0,0.15));
+        }
+        .state-shape:hover { 
+          filter: drop-shadow(0 6px 16px rgba(217, 119, 6, 0.45)) drop-shadow(0 2px 4px rgba(0,0,0,0.2)) brightness(1.08);
+        }
+        @keyframes animate-gradient {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        .animate-gradient {
+          background-size: 200% 200%;
+          animation: animate-gradient 3s ease infinite;
+        }
       `}</style>
     </div>
   );

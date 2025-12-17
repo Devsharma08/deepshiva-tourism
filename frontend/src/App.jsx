@@ -71,8 +71,13 @@ const prefetchAllRoutes = () => {
   ]).catch(() => { }); // Silently handle any errors
 };
 
-// Prefetch immediately when this module loads
+// Prefetch routes and images immediately when this module loads
 prefetchAllRoutes();
+
+// Preload critical images for faster rendering (imported dynamically to avoid circular deps)
+import('./utils/preloadRoutes').then(module => {
+  module.preloadCriticalImages?.();
+}).catch(() => { });
 
 // Activity tracking component
 import { useActivityTracker } from './hooks/useActivityTracker';

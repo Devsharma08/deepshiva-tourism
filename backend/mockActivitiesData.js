@@ -128,7 +128,7 @@ const ACTIVITIES_DATA = {
             title: 'Jet Ski Adventure Calangute',
             subtitle: 'Speed on the waves',
             description: 'Feel the adrenaline rush as you zip across the Goan waters.',
-            img: 'https://images.unsplash.com/photo-1622545810681-c3c5c2b9c03f?w=800&q=80',
+            img: 'https://images.unsplash.com/photo-1530870110042-98b2cb110834?w=800&q=80',
             location: { city: 'Calangute', state: 'Goa', coordinates: { lat: 15.5449, lng: 73.7551 } },
             duration: '15 mins',
             price: 800,

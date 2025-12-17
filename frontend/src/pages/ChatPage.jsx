@@ -502,16 +502,28 @@ const ChatPage = ({ activeState }) => {
                             </div>
                         )}
 
-                        {/* Typing indicator */}
+                        {/* Enhanced Thinking Indicator */}
                         {isTyping && !streamingText && (
                             <div className="flex gap-4 justify-start">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center shadow-sm">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center shadow-sm animate-pulse">
                                     <Bot className="w-5 h-5 text-white" />
                                 </div>
-                                <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-1">
-                                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '75ms' }}></div>
-                                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                <div className="bg-white border border-gray-100 px-5 py-4 rounded-2xl rounded-tl-sm shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <Sparkles className="w-4 h-4 text-orange-500 animate-spin" style={{ animationDuration: '3s' }} />
+                                            <span className="text-sm font-medium text-gray-700">Treveor is thinking</span>
+                                        </div>
+                                        <div className="flex gap-1">
+                                            <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce"></div>
+                                            <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                            <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                                        </div>
+                                    </div>
+                                    <div className="mt-2 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                        <div className="h-full bg-gradient-to-r from-orange-400 to-amber-500 rounded-full animate-pulse" style={{ width: '60%', animation: 'thinking-progress 2s ease-in-out infinite' }}></div>
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-2">Analyzing your query with local AI...</p>
                                 </div>
                             </div>
                         )}

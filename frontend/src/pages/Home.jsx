@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { preloadRoute } from "../utils/preloadRoutes";
 import Navigation from "./navigation";
 import CardsSection from "./CardSection";
@@ -13,7 +12,6 @@ import ChatbotButton from "../components/ChatbotButton";
 import MonthlyVideoHero from "../components/MonthlyVideoHero";
 
 function Home() {
-  const navigate = useNavigate();
   const [mousePosition, setMousePosition] = useState({ x: 50, y: 50 });
   const [immediateCursor, setImmediateCursor] = useState({ x: 50, y: 50 });
   const [isHovering, setIsHovering] = useState(false);
@@ -332,8 +330,10 @@ function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
-            <button
-              onClick={() => navigate('/itinerary')}
+            <a
+              href="/itinerary"
+              target="_blank"
+              rel="noopener noreferrer"
               onMouseEnter={() => preloadRoute('/itinerary')}
               className="group bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl"
             >
@@ -343,10 +343,12 @@ function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </span>
-            </button>
+            </a>
 
-            <button
-              onClick={() => navigate('/chat')}
+            <a
+              href="/chat"
+              target="_blank"
+              rel="noopener noreferrer"
               onMouseEnter={() => preloadRoute('/chat')}
               className="group bg-white hover:bg-gray-50 text-gray-700 px-8 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 border-2 border-gray-200 hover:border-orange-300 shadow-lg hover:shadow-xl"
             >
@@ -356,7 +358,7 @@ function Home() {
                 </svg>
                 Start Your Journey
               </span>
-            </button>
+            </a>
           </div>
 
           <div className="flex justify-center items-center gap-8 mt-12 text-sm text-gray-500 animate-fade-in-up" style={{ animationDelay: '1s' }}>
