@@ -1,97 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import LocationCard from './LocationCard';
-
-// Searchable destinations database (simulating Google Places)
-const searchableDestinations = [
-    {
-        id: 'search_001',
-        name: 'Red Fort',
-        category: 'landmark',
-        thumbnail: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=400',
-        duration: 150,
-        coordinates: { lat: 28.6562, lng: 77.2410 },
-        openingHours: '09:30 - 16:30',
-        description: 'A historic fort in the city of Delhi, served as the main residence of the Mughal Emperors.',
-        ticketPrice: '₹35 (Indian) / ₹500 (Foreign)'
-    },
-    {
-        id: 'search_002',
-        name: 'India Gate',
-        category: 'landmark',
-        thumbnail: 'https://images.unsplash.com/photo-1597040663342-45b6af3d91a5?w=400',
-        duration: 60,
-        coordinates: { lat: 28.6129, lng: 77.2295 },
-        openingHours: '24 Hours',
-        description: 'A war memorial located astride the Rajpath, dedicated to soldiers who died in World War I.',
-        ticketPrice: 'Free'
-    },
-    {
-        id: 'search_003',
-        name: 'Humayun\'s Tomb',
-        category: 'landmark',
-        thumbnail: 'https://images.unsplash.com/photo-1548013146-72479768bada?w=400',
-        duration: 90,
-        coordinates: { lat: 28.5933, lng: 77.2507 },
-        openingHours: '06:00 - 18:00',
-        description: 'The tomb of the Mughal Emperor Humayun, a UNESCO World Heritage Site.',
-        ticketPrice: '₹35 (Indian) / ₹550 (Foreign)'
-    },
-    {
-        id: 'search_004',
-        name: 'Qutub Minar',
-        category: 'landmark',
-        thumbnail: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?w=400',
-        duration: 90,
-        coordinates: { lat: 28.5245, lng: 77.1855 },
-        openingHours: '07:00 - 17:00',
-        description: 'A minaret and victory tower that forms part of the Qutb complex, a UNESCO World Heritage Site.',
-        ticketPrice: '₹35 (Indian) / ₹550 (Foreign)'
-    },
-    {
-        id: 'search_005',
-        name: 'Lotus Temple',
-        category: 'landmark',
-        thumbnail: 'https://images.unsplash.com/photo-1575999502951-4ab25fb1c8c9?w=400',
-        duration: 60,
-        coordinates: { lat: 28.5535, lng: 77.2588 },
-        openingHours: '09:00 - 17:00 (Closed Monday)',
-        description: 'A Bahá\'í House of Worship notable for its flower-like shape, surrounded by gardens.',
-        ticketPrice: 'Free'
-    },
-    {
-        id: 'search_006',
-        name: 'Chandni Chowk',
-        category: 'shopping',
-        thumbnail: 'https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=400',
-        duration: 180,
-        coordinates: { lat: 28.6506, lng: 77.2301 },
-        openingHours: '09:00 - 21:00',
-        description: 'One of the oldest and busiest markets in Old Delhi, known for street food and wholesale goods.',
-        ticketPrice: 'Free'
-    },
-    {
-        id: 'search_007',
-        name: 'National Museum',
-        category: 'museum',
-        thumbnail: 'https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=400',
-        duration: 120,
-        coordinates: { lat: 28.6117, lng: 77.2196 },
-        openingHours: '10:00 - 18:00 (Closed Monday)',
-        description: 'One of the largest museums in India, housing a collection of over 200,000 works of art.',
-        ticketPrice: '₹20 (Indian) / ₹650 (Foreign)'
-    },
-    {
-        id: 'search_008',
-        name: 'Lodhi Garden',
-        category: 'park',
-        thumbnail: 'https://images.unsplash.com/photo-1600011689032-8b628b8a8747?w=400',
-        duration: 90,
-        coordinates: { lat: 28.5932, lng: 77.2200 },
-        openingHours: '06:00 - 20:00',
-        description: 'A city park spread over 90 acres, containing works of architecture from the 15th century.',
-        ticketPrice: 'Free'
-    }
-];
+import { searchPlaces, CATEGORY_ICONS, CATEGORY_COLORS } from '../../utils/overpassService';
 
 function DestinationPanel({
     destinations,
@@ -101,12 +10,19 @@ function DestinationPanel({
     onOptimize,
     isOptimizing,
     tripDays,
-    onAddNewDestination
+    onAddNewDestination,
+    searchLocation = { lat: 27.1767, lon: 78.0081 }, // Default to Agra
+    isLoading = false,
+    loadError = null
 }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [draggedItem, setDraggedItem] = useState(null);
     const [showSearchResults, setShowSearchResults] = useState(false);
     const [activeTab, setActiveTab] = useState('unscheduled');
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchError, setSearchError] = useState(null);
+    const searchTimeoutRef = useRef(null);
 
     // Filter destinations based on search
     const filteredDestinations = destinations.filter(dest =>
@@ -114,14 +30,62 @@ function DestinationPanel({
         dest.category.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // Search results from database
-    const searchResults = searchQuery.length > 1
-        ? searchableDestinations.filter(dest =>
-            !destinations.some(d => d.id === dest.id) &&
-            (dest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                dest.category.toLowerCase().includes(searchQuery.toLowerCase()))
-        )
-        : [];
+    // Debounced API search using Overpass
+    const performSearch = useCallback(async (query) => {
+        if (query.length < 2) {
+            setSearchResults([]);
+            return;
+        }
+
+        setIsSearching(true);
+        setSearchError(null);
+
+        try {
+            // Overpass API searchPlaces returns already transformed results
+            const results = await searchPlaces(
+                query,
+                searchLocation.lat,
+                searchLocation.lon,
+                50000, // 50km radius
+                15     // Max results
+            );
+
+            // Filter out places already in destinations
+            const filteredResults = results.filter(
+                result => !destinations.some(d => d.id === result.id || d.name === result.name)
+            );
+
+            setSearchResults(filteredResults);
+        } catch (error) {
+            console.error('Search error:', error);
+            setSearchError('Failed to search places. Please try again.');
+            setSearchResults([]);
+        } finally {
+            setIsSearching(false);
+        }
+    }, [searchLocation, destinations]);
+
+    // Handle search input with debouncing (longer delay to avoid rate limits)
+    useEffect(() => {
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        // Only search with 3+ characters and after longer debounce
+        if (searchQuery.length > 2) {
+            searchTimeoutRef.current = setTimeout(() => {
+                performSearch(searchQuery);
+            }, 1500); // 1.5s debounce to avoid rate limits
+        } else {
+            setSearchResults([]);
+        }
+
+        return () => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
+    }, [searchQuery, performSearch]);
 
     const handleDragStart = (e, destination) => {
         setDraggedItem(destination);
@@ -214,10 +178,10 @@ function DestinationPanel({
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value);
-                            setShowSearchResults(e.target.value.length > 1);
+                            setShowSearchResults(e.target.value.length > 2);
                         }}
-                        onFocus={() => setShowSearchResults(searchQuery.length > 1)}
-                        placeholder="Search or add new destination..."
+                        onFocus={() => setShowSearchResults(searchQuery.length > 2)}
+                        placeholder="Search or add new destination (3+ chars)..."
                         className="w-full pl-10 pr-10 py-3 bg-white border-2 border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all shadow-sm"
                     />
                     {searchQuery && (
@@ -235,36 +199,95 @@ function DestinationPanel({
                     )}
 
                     {/* Search Results Dropdown */}
-                    {showSearchResults && searchResults.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 max-h-64 overflow-y-auto z-50">
-                            <div className="p-2 border-b border-gray-100 bg-gray-50">
-                                <span className="text-xs font-medium text-gray-500">Add from suggestions</span>
+                    {showSearchResults && (isSearching || searchResults.length > 0 || searchError) && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 max-h-80 overflow-y-auto z-50">
+                            <div className="p-2 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-orange-50/30 flex items-center justify-between">
+                                <span className="text-xs font-medium text-gray-500">
+                                    {isSearching ? '🔍 Searching...' : `Found ${searchResults.length} places`}
+                                </span>
+                                <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                                    OpenStreetMap
+                                </span>
                             </div>
-                            {searchResults.map((result) => (
+
+                            {/* Loading Spinner */}
+                            {isSearching && (
+                                <div className="flex items-center justify-center py-8">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="w-8 h-8 border-3 border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
+                                        <span className="text-sm text-gray-500">Finding attractions...</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Error State */}
+                            {searchError && !isSearching && (
+                                <div className="p-4 text-center">
+                                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                        <span className="text-xl">⚠️</span>
+                                    </div>
+                                    <p className="text-sm text-red-600">{searchError}</p>
+                                    <button
+                                        onClick={() => performSearch(searchQuery)}
+                                        className="mt-2 text-xs text-orange-600 hover:text-orange-700 font-medium"
+                                    >
+                                        Try again
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Results List */}
+                            {!isSearching && !searchError && searchResults.map((result) => (
                                 <button
                                     key={result.id}
                                     onClick={() => handleAddFromSearch(result)}
-                                    className="w-full flex items-center gap-3 p-3 hover:bg-orange-50 transition-colors text-left border-b border-gray-50 last:border-b-0"
+                                    className="w-full flex items-center gap-3 p-3 hover:bg-orange-50 transition-colors text-left border-b border-gray-50 last:border-b-0 group"
                                 >
-                                    <img
-                                        src={result.thumbnail}
-                                        alt={result.name}
-                                        className="w-12 h-12 rounded-lg object-cover"
-                                    />
+                                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                        <img
+                                            src={result.thumbnail}
+                                            alt={result.name}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                e.target.src = 'https://images.unsplash.com/photo-1564507592333-c60657eea523?w=400';
+                                            }}
+                                        />
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="font-medium text-gray-900 truncate">{result.name}</div>
                                         <div className="flex items-center gap-2 mt-0.5">
-                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${categoryColors[result.category]}`}>
-                                                {categoryIcons[result.category]} {result.category}
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${categoryColors[result.category] || 'bg-gray-100 text-gray-700'}`}>
+                                                {categoryIcons[result.category] || '📍'} {result.category}
                                             </span>
-                                            <span className="text-xs text-gray-400">{Math.floor(result.duration / 60)}h {result.duration % 60}m</span>
+                                            {result.rating > 0 && (
+                                                <span className="text-xs text-amber-600 flex items-center gap-0.5">
+                                                    ★ {result.rating}
+                                                </span>
+                                            )}
                                         </div>
+                                        {result.description && (
+                                            <p className="text-xs text-gray-400 mt-1 line-clamp-1">{result.description}</p>
+                                        )}
                                     </div>
-                                    <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                    </svg>
+                                    <div className="flex-shrink-0 w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center group-hover:bg-orange-500 transition-colors">
+                                        <svg className="w-4 h-4 text-orange-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                    </div>
                                 </button>
                             ))}
+
+                            {/* No Results */}
+                            {!isSearching && !searchError && searchResults.length === 0 && searchQuery.length > 1 && (
+                                <div className="p-6 text-center">
+                                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                        <span className="text-xl">🔍</span>
+                                    </div>
+                                    <p className="text-sm text-gray-600">No places found for "{searchQuery}"</p>
+                                    <p className="text-xs text-gray-400 mt-1">Try a different search term</p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -288,7 +311,39 @@ function DestinationPanel({
 
             {/* Destinations List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide">
-                {filteredDestinations.length === 0 ? (
+                {/* Loading State */}
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                        <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-amber-100 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                            <div className="w-10 h-10 border-3 border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
+                        </div>
+                        <p className="text-gray-600 font-semibold text-lg">Loading Attractions...</p>
+                        <p className="text-sm text-gray-400 mt-2 max-w-[220px]">
+                            Fetching real-time data from OpenStreetMap
+                        </p>
+                        <div className="flex items-center gap-2 mt-4 text-xs text-gray-400">
+                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                            Powered by Overpass API
+                        </div>
+                    </div>
+                ) : loadError ? (
+                    /* Error State */
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                            <span className="text-4xl">⚠️</span>
+                        </div>
+                        <p className="text-gray-600 font-semibold text-lg">Unable to Load Places</p>
+                        <p className="text-sm text-red-500 mt-2 max-w-[220px]">
+                            {loadError}
+                        </p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="mt-4 px-4 py-2 bg-orange-100 text-orange-700 rounded-lg text-sm font-medium hover:bg-orange-200 transition-colors"
+                        >
+                            🔄 Retry
+                        </button>
+                    </div>
+                ) : filteredDestinations.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                         <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-amber-100 rounded-full flex items-center justify-center mb-4 shadow-inner">
                             <span className="text-4xl">🎯</span>

@@ -6,165 +6,12 @@ import TimelineView from '../components/itinerary/TimelineView';
 import MapView from '../components/itinerary/MapView';
 import DetailsPanel from '../components/itinerary/DetailsPanel';
 import ItineraryChatPopup, { ItineraryChatButton } from '../components/itinerary/ItineraryChatPopup';
-
-// Rich sample destinations data with Indian tourism focus
-const sampleDestinations = [
-    {
-        id: 'dest_001',
-        name: 'Taj Mahal',
-        category: 'landmark',
-        thumbnail: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?w=400',
-        priority: 'must-visit',
-        scheduledDay: null,
-        scheduledTime: null,
-        duration: 180,
-        coordinates: { lat: 27.1751, lng: 78.0421 },
-        openingHours: '06:00 - 18:30',
-        description: 'An ivory-white marble mausoleum on the right bank of the river Yamuna. Built by Mughal Emperor Shah Jahan in memory of his wife Mumtaz Mahal, it is one of the Seven Wonders of the World.',
-        ticketPrice: '₹50 (Indian) / ₹1100 (Foreign)',
-        website: 'https://www.tajmahal.gov.in',
-        hasConflict: false,
-        conflictReason: null,
-        tips: ['Visit at sunrise for best photos', 'Friday is closed for prayers', 'Carry water - no vendors inside']
-    },
-    {
-        id: 'dest_002',
-        name: 'Agra Fort',
-        category: 'museum',
-        thumbnail: 'https://images.unsplash.com/photo-1585135497273-1a86b09fe70e?w=400',
-        priority: 'must-visit',
-        scheduledDay: null,
-        scheduledTime: null,
-        duration: 120,
-        coordinates: { lat: 27.1795, lng: 78.0211 },
-        openingHours: '06:00 - 18:00',
-        description: 'A historical fort in the city of Agra, a UNESCO World Heritage site. It was the main residence of the emperors of the Mughal Dynasty until 1638.',
-        ticketPrice: '₹40 (Indian) / ₹650 (Foreign)',
-        website: 'https://agrafort.gov.in',
-        hasConflict: false,
-        conflictReason: null,
-        tips: ['Combine with Taj Mahal visit', 'Great views of Taj from Musamman Burj']
-    },
-    {
-        id: 'dest_003',
-        name: 'Mehtab Bagh',
-        category: 'park',
-        thumbnail: 'https://images.unsplash.com/photo-1548013146-72479768bada?w=400',
-        priority: 'optional',
-        scheduledDay: null,
-        scheduledTime: null,
-        duration: 60,
-        coordinates: { lat: 27.1753, lng: 78.0311 },
-        openingHours: '06:00 - 19:00',
-        description: 'A charbagh complex north of the Taj Mahal, offering stunning sunset views. Originally built by Emperor Babur as the first of eleven parks on the banks of the Yamuna.',
-        ticketPrice: '₹30 (Indian) / ₹300 (Foreign)',
-        website: null,
-        hasConflict: false,
-        conflictReason: null,
-        tips: ['Perfect sunset spot', 'Less crowded than main Taj complex']
-    },
-    {
-        id: 'dest_004',
-        name: 'Fatehpur Sikri',
-        category: 'landmark',
-        thumbnail: 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=400',
-        priority: 'optional',
-        scheduledDay: null,
-        scheduledTime: null,
-        duration: 150,
-        coordinates: { lat: 27.0945, lng: 77.6679 },
-        openingHours: '06:00 - 18:00',
-        description: 'A city built by Mughal Emperor Akbar in the 16th century, now a UNESCO World Heritage Site. Features stunning Mughal architecture including the Buland Darwaza.',
-        ticketPrice: '₹50 (Indian) / ₹610 (Foreign)',
-        website: null,
-        hasConflict: false,
-        conflictReason: null,
-        tips: ['Half-day trip from Agra (40km)', 'Hire a guide for historical context']
-    },
-    {
-        id: 'dest_005',
-        name: 'Jama Masjid Agra',
-        category: 'landmark',
-        thumbnail: 'https://images.unsplash.com/photo-1599661046827-dacde6976549?w=400',
-        priority: 'optional',
-        scheduledDay: null,
-        scheduledTime: null,
-        duration: 45,
-        coordinates: { lat: 27.1800, lng: 78.0166 },
-        openingHours: '07:00 - 12:00, 14:00 - 17:00',
-        description: 'One of the largest mosques in India, built by Shah Jahan in 1648 and dedicated to his daughter Jahanara Begum.',
-        ticketPrice: 'Free',
-        website: null,
-        hasConflict: false,
-        conflictReason: null,
-        tips: ['Dress modestly', 'Remove shoes before entering']
-    },
-    {
-        id: 'dest_006',
-        name: 'Akbar\'s Tomb',
-        category: 'landmark',
-        thumbnail: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=400',
-        priority: 'optional',
-        scheduledDay: null,
-        scheduledTime: null,
-        duration: 90,
-        coordinates: { lat: 27.2200, lng: 77.9500 },
-        openingHours: '06:00 - 18:00',
-        description: 'The tomb of the Mughal Emperor Akbar at Sikandra, featuring unique Indo-Islamic architecture. Akbar himself designed the tomb.',
-        ticketPrice: '₹35 (Indian) / ₹310 (Foreign)',
-        website: null,
-        hasConflict: false,
-        conflictReason: null,
-        tips: ['Wild deer roam the gardens', 'Less crowded in mornings']
-    },
-    {
-        id: 'dest_007',
-        name: 'Itimad-ud-Daulah',
-        category: 'landmark',
-        thumbnail: 'https://images.unsplash.com/photo-1548013146-72479768bada?w=400',
-        priority: 'optional',
-        scheduledDay: null,
-        scheduledTime: null,
-        duration: 60,
-        coordinates: { lat: 27.1925, lng: 78.0300 },
-        openingHours: '06:00 - 18:00',
-        description: 'Often called the "Baby Taj", this Mughal mausoleum was commissioned by Nur Jahan for her father. It\'s the first Mughal structure to extensively use pietra dura.',
-        ticketPrice: '₹25 (Indian) / ₹310 (Foreign)',
-        website: null,
-        hasConflict: false,
-        conflictReason: null,
-        tips: ['Precursor to Taj architecture', 'Beautiful at sunset']
-    }
-];
-
-const nearbySuggestions = [
-    {
-        id: 'nearby_001',
-        name: 'Kinari Bazaar',
-        category: 'shopping',
-        coordinates: { lat: 27.1780, lng: 78.0180 },
-        thumbnail: 'https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=400'
-    },
-    {
-        id: 'nearby_002',
-        name: 'Sadar Bazaar',
-        category: 'shopping',
-        coordinates: { lat: 27.1850, lng: 78.0120 },
-        thumbnail: 'https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=400'
-    },
-    {
-        id: 'nearby_003',
-        name: 'Anguri Bagh',
-        category: 'park',
-        coordinates: { lat: 27.1790, lng: 78.0220 },
-        thumbnail: 'https://images.unsplash.com/photo-1600011689032-8b628b8a8747?w=400'
-    }
-];
+import { getAttractions, getNearbyPlaces as fetchNearbyPlaces } from '../utils/overpassService';
 
 function ItineraryPlanner() {
     const navigate = useNavigate();
 
-    // Trip context state
+    // Trip context state with search location
     const [tripContext, setTripContext] = useState({
         title: 'Agra Heritage Tour',
         dateRange: {
@@ -173,11 +20,20 @@ function ItineraryPlanner() {
         },
         pace: 'balanced',
         transportMode: 'car',
-        partySize: 2
+        partySize: 2,
+        // Search location for Overpass API
+        location: {
+            lat: 27.1751, // Agra (Taj Mahal)
+            lon: 78.0421,
+            name: 'Agra'
+        }
     });
 
-    // Destinations state
-    const [destinations, setDestinations] = useState(sampleDestinations);
+    // Destinations state - starts empty, loaded from API
+    const [destinations, setDestinations] = useState([]);
+    const [nearbySuggestions, setNearbySuggestions] = useState([]);
+    const [isLoadingDestinations, setIsLoadingDestinations] = useState(true);
+    const [loadError, setLoadError] = useState(null);
 
     // UI state
     const [selectedDestination, setSelectedDestination] = useState(null);
@@ -186,6 +42,46 @@ function ItineraryPlanner() {
     const [showDetailsPanel, setShowDetailsPanel] = useState(false);
     const [notification, setNotification] = useState(null);
     const [isChatOpen, setIsChatOpen] = useState(false);
+
+    // Load destinations from Overpass API on mount
+    useEffect(() => {
+        async function loadDestinations() {
+            setIsLoadingDestinations(true);
+            setLoadError(null);
+
+            try {
+                // Fetch attractions from Overpass API
+                const attractions = await getAttractions(
+                    tripContext.location.lat,
+                    tripContext.location.lon,
+                    10000, // 10km radius
+                    null,  // All categories
+                    20     // Up to 20 results
+                );
+
+                if (attractions.length > 0) {
+                    setDestinations(attractions);
+                }
+
+                // Also fetch nearby suggestions for the map
+                const nearby = await fetchNearbyPlaces(
+                    tripContext.location.lat,
+                    tripContext.location.lon,
+                    2000, // 2km radius for nearby
+                    5
+                );
+                setNearbySuggestions(nearby.filter(n => !attractions.find(a => a.id === n.id)));
+
+            } catch (error) {
+                console.error('Error loading destinations:', error);
+                setLoadError('Failed to load attractions. Please try again.');
+            } finally {
+                setIsLoadingDestinations(false);
+            }
+        }
+
+        loadDestinations();
+    }, [tripContext.location.lat, tripContext.location.lon]);
 
     // Scroll to top when component mounts
     useEffect(() => {
@@ -532,6 +428,12 @@ function ItineraryPlanner() {
                     isOptimizing={isOptimizing}
                     tripDays={getTripDays()}
                     onAddNewDestination={handleAddNewDestination}
+                    searchLocation={{
+                        lat: tripContext.location?.lat || destinations[0]?.coordinates?.lat || 27.1767,
+                        lon: tripContext.location?.lon || destinations[0]?.coordinates?.lng || 78.0081
+                    }}
+                    isLoading={isLoadingDestinations}
+                    loadError={loadError}
                 />
 
                 {/* Center Panel - Timeline */}

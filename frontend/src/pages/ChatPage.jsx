@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, ArrowLeft, Sparkles, Trash2, Bot, User, Settings, Mic, MicOff, Loader2, AlertCircle } from 'lucide-react';
+import { Send, ArrowLeft, Sparkles, Trash2, Bot, User, Settings, Mic, MicOff, Loader2, AlertCircle, Mountain } from 'lucide-react';
 import { saveMessageToHistory, getChatHistory, clearHistory } from "../utils/ContextManager";
+import TrekAnalyzerPopup from '../components/TrekAnalyzerPopup';
 
 const API_BASE = 'http://localhost:5000';
 
@@ -101,6 +102,7 @@ const ChatPage = ({ activeState }) => {
         useStreaming: true,
         userId: `user_${Date.now()}`
     });
+    const [showTrekAnalyzer, setShowTrekAnalyzer] = useState(false);
 
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
@@ -369,6 +371,14 @@ const ChatPage = ({ activeState }) => {
                     </div>
                     <div className="flex items-center gap-2">
                         <button
+                            onClick={() => setShowTrekAnalyzer(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl hover:shadow-lg hover:shadow-emerald-200 transition-all font-medium text-sm"
+                            title="Trek Analyzer"
+                        >
+                            <Mountain className="w-4 h-4" />
+                            <span className="hidden sm:inline">Trek Analyzer</span>
+                        </button>
+                        <button
                             onClick={() => setShowSettings(!showSettings)}
                             className={`p-2 rounded-lg transition-colors ${showSettings ? 'bg-orange-100 text-orange-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
                             title="Settings"
@@ -531,8 +541,8 @@ const ChatPage = ({ activeState }) => {
                         <button
                             onClick={toggleListening}
                             className={`p-4 rounded-2xl transition-all duration-200 flex-shrink-0 ${isListening
-                                    ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'
+                                ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'
                                 }`}
                             title={isListening ? 'Stop listening' : 'Start voice input'}
                         >
@@ -567,6 +577,12 @@ const ChatPage = ({ activeState }) => {
                     </p>
                 </div>
             </div>
+
+            {/* Trek Analyzer Popup */}
+            <TrekAnalyzerPopup
+                isOpen={showTrekAnalyzer}
+                onClose={() => setShowTrekAnalyzer(false)}
+            />
         </div>
     );
 };
